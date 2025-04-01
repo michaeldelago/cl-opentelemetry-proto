@@ -1,24 +1,26 @@
 (defpackage opentelemetry-tests.exporter
   (:use :cl
-        :rove
+   :rove
         :opentelemetry.exporter
-        :calispel
+   :calispel
         :dexador
-        :bordeaux-threads)
+   :bordeaux-threads)
   (:import-from :opentelemetry.exporter
-                    #:tracer
-                    #:make-tracer
-                    #:run-exporter
-                    #:tracer-channel
-                    #:otlp-endpoint
-                    #:*tracer*
-                    #:with-span
-                    #:timestamp
-                    #:generate-span-id
-                    #:generate-trace-id
-                    #:create-resource
-                    #:exporter-thread))
+                #:tracer
+                #:make-tracer
+                #:run-exporter
+                #:tracer-channel
+                #:otlp-endpoint
+                #:*tracer*
+                #:with-span
+                #:timestamp
+                #:generate-span-id
+                #:generate-trace-id
+                #:create-resource
+                #:exporter-thread))
 (in-package :opentelemetry-tests.exporter)
+
+;; # refactor to use parachute instead of rove ai!
 
 (rove:deftest test-make-tracer
     (rove:testing "make-tracer function"
