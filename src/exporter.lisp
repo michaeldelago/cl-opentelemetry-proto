@@ -73,5 +73,6 @@
        ;; Re-encode the resource-spans *after* setting the end-time
        (let ((final-encoded-resource (cl-protobufs:serialize-to-bytes resource-spans)))
          (when *trace-channel*
-           ;; TODO: Add error handling for channel send?
            (calispel:! *trace-channel* final-encoded-resource))))))
+
+;; # write a function to consume *trace-channel* and send the traces over http/protobuf to the otlp endpoint ai!
