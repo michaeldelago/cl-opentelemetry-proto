@@ -15,6 +15,12 @@
                 #:exporter-thread))
 (in-package :opentelemetry-tests.exporter)
 
+(defvar data-sent nil) ;; Define data-sent outside test-case scope
+
+(defun mock-post (url &key headers content &allow-other-keys)
+  (declare (ignore url headers))
+  (setf data-sent content))
+
 
 (test-case test-make-tracer
            (test-section "make-tracer function"
@@ -27,13 +33,9 @@
                          (let ((endpoint "http://localhost:4318/v1/traces")
                                (tracer (make-tracer endpoint :channel-buffer-size 10))
                                (test-channel (tracer-channel tracer))
-                               (data-sent nil))
-                           ;; Mock dexador:post to avoid actual HTTP calls and verify data sending
-                           (flet ((mock-post (url &key headers content &allow-other-keys)
-                                    (declare (ignore url headers))
-                                    (setf data-sent content)
-                                    ;; Assertion moved outside of mock-post
-                                    )))
+                               ;; data-sent moved to top level
+                               )
+                           (let ((data-sent nil))
                              (with-mocked-functions ((dexador:post #'mock-post))
                                (with-timeout 5 ;; Timeout to prevent indefinite blocking if something goes wrong
                                  (bordeaux-threads-2:make-thread (lambda ()
