@@ -2,10 +2,11 @@
   :version "0.1.0"
   :author ""
   :license "MIT"
-  :depends-on (:cl-protobufs
-               :serapeum
+  :depends-on (:bordeaux-threads
                :calispel
-               :bordeaux-threads-2)
+               :dexador
+               :serapeum
+               :cl-protobufs)
   :defsystem-depends-on ()
   :serial t
   :components ((:file "src/opentelemetry/proto/common/v1/common")
@@ -18,19 +19,14 @@
                (:file "src/opentelemetry/proto/collector/trace/v1/trace_service")
                (:file "src/exporter"))
   :description ""
-  :test-op (test-op :depends-on (:cl-otel-tests)
-                   :perform (,(find-class 'asdf:load-op)   ; Load cl-otel-tests system
-                             (o c)
-                             (asdf:load-system :cl-otel-tests))
-                   :perform (,(find-class 'asdf:test-op)   ; Run tests of cl-otel-tests system
-                             (o c)
-                             (asdf:test-system :cl-otel-tests))))
+  :in-order-to ((test-op (test-op "cl-otel/tests"))))
 
 
-(defsystem "cl-otel-tests"
+(defsystem "cl-otel/tests"
   :version "0.1.0"
   :author ""
   :license "MIT"
   :depends-on (:cl-otel
                :parachute)
-  :components ((:file "tests/exporter")))
+  :components ((:file "tests/exporter"))
+  :perform (test-op (op c) (uiop:symbol-call :parachute :test-package)))

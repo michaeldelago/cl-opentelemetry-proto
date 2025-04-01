@@ -35,14 +35,13 @@
                                (test-channel (tracer-channel tracer))
                                ;; data-sent moved to top level
                                )
-                           (let ((data-sent nil))
-                             (with-mocked-functions ((dexador:post #'mock-post))
-                               (with-timeout 5 ;; Timeout to prevent indefinite blocking if something goes wrong
-                                 (bordeaux-threads-2:make-thread (lambda ()
-                                                                   (run-exporter tracer :background nil))
-                                                                 :name "Exporter Test Thread")
-                                 (calispel:! test-channel "test-span-data")))
-                             (parachute:is string= data-sent "test-span-data" "data was sent to exporter")))))
+                           (with-mocked-functions ((dexador:post #'mock-post))
+                             (with-timeout 5 ;; Timeout to prevent indefinite blocking if something goes wrong
+                               (bordeaux-threads-2:make-thread (lambda ()
+                                                                 (run-exporter tracer :background nil))
+                                                               :name "Exporter Test Thread")
+                               (calispel:! test-channel "test-span-data")))
+                           (parachute:is string= data-sent "test-span-data" "data was sent to exporter"))))
 
 
 
