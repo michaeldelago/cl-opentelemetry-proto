@@ -8,6 +8,7 @@
            #:*resource*
            #:with-span
            #:tracer        ; Export the class name
+           #:make-tracer   ; Export the constructor
            #:*tracer*      ; Export the active tracer instance var
            #:tracer-channel ; Export the channel reader
            #:otlp-endpoint ; Export the endpoint reader
@@ -87,7 +88,8 @@
 
 (defclass tracer ()
   ((channel :reader tracer-channel
-            :initform (calispel:make-channel :name "tracer-export")
+            :initarg :channel ; Add initarg
+            ;; Remove initform
             :documentation "The channel used to queue spans data for export.")
    (exporter-thread :accessor exporter-thread
                     :initform nil
@@ -97,7 +99,16 @@
                   :documentation "The OTLP HTTP endpoint URL for traces."))
   (:documentation "Manages the asynchronous export of trace spans."))
 
-;; # make a constructor function for the tracer, which takes the otlp endpoint and the channel buffer size. default the channel buffer to 100 ai!
+(defun make-tracer (otlp-endpoint &key (channel-buffer-size 100))
+  "Creates and returns a new TRACER instance.
+
+  Args:
+    otlp-endpoint: The URL of the OTLP HTTP endpoint for traces.
+    channel-buffer-size: The buffer size for the internal trace channel. Defaults to 100."
+  (make-instance 'tracer
+                 :otlp-endpoint otlp-endpoint
+                 :channel (calispel:make-channel :buffer channel-buffer-size
+                                                 :name "Trace Export Channel")))
 
 (defmethod run-exporter ((tracer tracer) &key (background t))
   "Starts the exporter loop for the given TRACER instance.
