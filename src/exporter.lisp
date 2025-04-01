@@ -7,7 +7,8 @@
 
            #:*resource*
            #:with-span
-           #:*trace-channel*)) ; Export the new channel variable
+           #:*trace-channel* ; Export the new channel variable
+           #:run-exporter)) ; Export the new exporter function
 
 (in-package :opentelemetry.exporter)
 
@@ -75,4 +76,21 @@
          (when *trace-channel*
            (calispel:! *trace-channel* final-encoded-resource))))))
 
-;; # write a function to consume *trace-channel* and send the traces over http/protobuf to the otlp endpoint ai!
+(defun run-exporter (otlp-endpoint &key (channel *trace-channel*))
+  "Consumes serialized trace data from the specified CHANNEL and sends it
+  via HTTP/protobuf to the OTLP-ENDPOINT.
+
+  This function runs in a loop and is intended to be run in a separate thread.
+  It blocks until data is available on the channel."
+  (unless channel
+    (error "Trace channel is not initialized."))
+  (loop
+    (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
+      (when serialized-spans
+        (handler-case
+            (dexador:post otlp-endpoint
+                          :headers '(:content-type "application/x-protobuf")
+                          :content serialized-spans)
+          ;; TODO: Implement more robust error handling and logging
+          (error (c)
+            (format *error-output* "~&Error exporting trace: ~A~%" c)))))))
