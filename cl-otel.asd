@@ -2,7 +2,10 @@
   :version "0.1.0"
   :author ""
   :license "MIT"
-  :depends-on (:cl-protobufs)
+  :depends-on (:cl-protobufs
+               :serapeum
+               :calispel
+               :bordeaux-threads-2)
   :defsystem-depends-on ()
   :serial t
   :components ((:file "src/opentelemetry/proto/common/v1/common")
