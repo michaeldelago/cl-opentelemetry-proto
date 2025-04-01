@@ -19,6 +19,7 @@
                (:file "src/exporter"))
   :description "")
 
+;; # add a test-op to this system ai!
 (defsystem "cl-otel-tests"
   :version "0.1.0"
   :author ""
