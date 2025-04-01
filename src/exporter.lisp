@@ -1,21 +1,28 @@
 (defpackage opentelemetry.exporter
   (:use :cl)
-  (:local-nicknames (#:otel.trace #:cl-protobufs.opentelemetry.proto.trace.v1))
+  (:local-nicknames (#:otel.trace #:cl-protobufs.opentelemetry.proto.trace.v1)
+                    (#:bt #:bordeaux-threads)) ; Added bordeaux-threads
   (:export #:*current-span-id*
            #:*trace-id*
-           #:create-tracer
-
+           #:create-tracer ; Keep this? Might need adjustment for the class
            #:*resource*
            #:with-span
-           #:*trace-channel* ; Export the new channel variable
-           #:run-exporter)) ; Export the new exporter function
+           #:tracer        ; Export the class name
+           #:*tracer*      ; Export the active tracer instance var
+           #:tracer-channel ; Export the channel reader
+           #:otlp-endpoint ; Export the endpoint reader
+           #:run-exporter) ; Export the generic function/method name
+)
 
 (in-package :opentelemetry.exporter)
 
 (defvar *current-span-id* nil)
 (defvar *trace-id* nil)
-(defvar *trace-channel* nil
-  "A calispel channel used to send trace data for asynchronous export.")
+;; Removed global *trace-channel*
+;; (defvar *trace-channel* nil
+;;   "A calispel channel used to send trace data for asynchronous export.")
+
+(defvar *tracer* nil "The currently active tracer instance.")
 
 (defparameter *resource* nil)
 
@@ -73,19 +80,51 @@
        (setf (otel.trace:end-time-unix-nano span) end-time)
        ;; Re-encode the resource-spans *after* setting the end-time
        (let ((final-encoded-resource (cl-protobufs:serialize-to-bytes resource-spans)))
-         (when *trace-channel*
-           (calispel:! *trace-channel* final-encoded-resource))))))
+         ;; Use the channel from the active *tracer* instance
+         (when (and *tracer* (tracer-channel *tracer*))
+           (calispel:! (tracer-channel *tracer*) final-encoded-resource))))))
 
-;; # write a class definition for a tracer. it should create it's own trace-channel, and it should have run-exporter as a method ai!
 
-(defun run-exporter (otlp-endpoint &key (channel *trace-channel*))
+(defclass tracer ()
+  ((channel :reader tracer-channel
+            :initform (calispel:make-channel :name "Trace Export Channel")
+            :documentation "The channel used to queue trace data for export.")
+   (exporter-thread :accessor exporter-thread
+                    :initform nil
+                    :documentation "The thread running the exporter loop.")
+   (otlp-endpoint :reader otlp-endpoint
+                  :initarg :otlp-endpoint
+                  :documentation "The OTLP HTTP endpoint URL for traces."))
+  (:documentation "Manages the asynchronous export of trace spans."))
+
+(defmethod run-exporter ((tracer tracer) &key (background t))
+  "Starts the exporter loop for the given TRACER instance.
+  If BACKGROUND is true (the default), runs the exporter in a new thread.
+  Otherwise, runs in the current thread (blocking)."
+  (let ((endpoint (otlp-endpoint tracer))
+        (channel (tracer-channel tracer)))
+    (flet ((exporter-loop ()
+             ;; Call the original function that contains the loop logic
+             (run-exporter endpoint :channel channel)))
+      (if background
+          (progn
+            (when (and (exporter-thread tracer) (bt:thread-alive-p (exporter-thread tracer)))
+              (error "Exporter thread is already running for this tracer."))
+            (setf (exporter-thread tracer)
+                  (bt:make-thread #'exporter-loop :name "OTLP Exporter Thread")))
+          (exporter-loop))))) ; Run in current thread if background is nil
+
+;; This is the original function, now primarily called by the run-exporter method.
+;; It can still be called directly if needed, but requires manual channel provision.
+(defun run-exporter (otlp-endpoint &key channel)
   "Consumes serialized trace data from the specified CHANNEL and sends it
   via HTTP/protobuf to the OTLP-ENDPOINT.
 
-  This function runs in a loop and is intended to be run in a separate thread.
+  This function runs in a loop and is intended to be run in a separate thread
+  (usually managed by the 'tracer' class instance).
   It blocks until data is available on the channel."
   (unless channel
-    (error "Trace channel is not initialized."))
+    (error "Trace channel is not provided or initialized."))
   (loop
     (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
       (when serialized-spans
