@@ -1,28 +1,24 @@
 (defpackage opentelemetry.exporter
   (:use :cl)
   (:local-nicknames (#:otel.trace #:cl-protobufs.opentelemetry.proto.trace.v1)
-                    (#:bt #:bordeaux-threads)) ; Added bordeaux-threads
+                    (#:bt2 #:bordeaux-threads)) ; Added bordeaux-threads
   (:export #:*current-span-id*
            #:*trace-id*
-           #:create-tracer ; Keep this? Might need adjustment for the class
+           #:create-resource
            #:*resource*
            #:with-span
-           #:tracer        ; Export the class name
-           #:make-tracer   ; Export the constructor
-           #:*tracer*      ; Export the active tracer instance var
-           #:tracer-channel ; Export the channel reader
-           #:otlp-endpoint ; Export the endpoint reader
-           #:run-exporter)) ; Export the generic function/method name
+           #:tracer
+           #:make-tracer
+           #:*tracer*
+           #:tracer-channel
+           #:otlp-endpoint
+           #:run-exporter))
 
 
 (in-package :opentelemetry.exporter)
 
 (defvar *current-span-id* nil)
 (defvar *trace-id* nil)
-;; Removed global *trace-channel*
-;; (defvar *trace-channel* nil
-;;   "A calispel channel used to send trace data for asynchronous export.")
-
 (defvar *tracer* nil "The currently active tracer instance.")
 
 (defparameter *resource* nil)
@@ -47,7 +43,7 @@
     bytes))
 
 
-(defun create-tracer (resource-attributes)
+(defun create-resource (resource-attributes)
   (make-instance 'otel.trace:resource-spans
                  :resource (make-instance 'otel.trace:resource
                                           :attributes (coerce resource-attributes 'vector))))
@@ -120,10 +116,10 @@
              (do-run-exporter endpoint :channel channel)))
       (if background
           (progn
-            (when (and (exporter-thread tracer) (bt:thread-alive-p (exporter-thread tracer)))
+            (when (and (exporter-thread tracer) (bt2:thread-alive-p (exporter-thread tracer)))
               (error "Exporter thread is already running for this tracer."))
             (setf (exporter-thread tracer)
-                  (bt:make-thread #'exporter-loop :name "OTLP Exporter Thread")))
+                  (bt2:make-thread #'exporter-loop :name "OTLP Exporter Thread")))
           (exporter-loop))))) ; Run in current thread if background is nil
 
 (defun do-run-exporter (otlp-endpoint &key channel)
@@ -136,7 +132,7 @@
   (unless channel
     (error "Trace channel is not provided or initialized."))
   (loop
-    (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
+    (let ((serialized-spans (the string (calispel:? channel)))) ; Blocks until data is available
       (when serialized-spans
         (handler-case
             (dexador:post otlp-endpoint
@@ -145,3 +141,5 @@
           ;; TODO: Implement more robust error handling and logging
           (error (c)
             (format *error-output* "~&Error exporting trace: ~A~%" c)))))))
+
+;; # write tests for this file, and put them in test/exporter.lisp instead of src/exporter.lisp ai!
