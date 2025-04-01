@@ -141,5 +141,3 @@
           ;; TODO: Implement more robust error handling and logging
           (error (c)
             (format *error-output* "~&Error exporting trace: ~A~%" c)))))))
-
-;; # write tests for this file, and put them in test/exporter.lisp instead of src/exporter.lisp ai!
