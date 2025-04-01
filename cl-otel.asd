@@ -12,5 +12,6 @@
                (:file "src/opentelemetry/proto/trace/v1/trace")
                (:file "src/opentelemetry/proto/collector/logs/v1/logs_service")
                (:file "src/opentelemetry/proto/collector/metrics/v1/metrics_service")
-               (:file "src/opentelemetry/proto/collector/trace/v1/trace_service"))
+               (:file "src/opentelemetry/proto/collector/trace/v1/trace_service")
+               (:file "src/exporter"))
   :description "")

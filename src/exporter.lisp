@@ -107,8 +107,8 @@
     channel-buffer-size: The buffer size for the internal trace channel. Defaults to 100."
   (make-instance 'tracer
                  :otlp-endpoint otlp-endpoint
-                 :channel (calispel:make-channel :buffer channel-buffer-size
-                                                 :name "Trace Export Channel")))
+                 :channel (make-instance 'calispel:channel :buffer channel-buffer-size
+                                                           :name "Trace Export Channel")))
 
 (defmethod run-exporter ((tracer tracer) &key (background t))
   "Starts the exporter loop for the given TRACER instance.
