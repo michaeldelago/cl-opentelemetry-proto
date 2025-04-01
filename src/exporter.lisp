@@ -63,6 +63,7 @@
           (prog1
               ,@body
             (setf end-time (timestamp)))
+       ;; # instead of directly sending the traces to an endpoint, send the data to a channel. Then, the tracer can consume that channel ai!
        (setf (otel.trace:end-time-unix-nano span) end-time)
        (let ((collector-url "http://otel:4318/v1/traces"))
          (ignore-errors
