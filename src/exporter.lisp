@@ -15,9 +15,12 @@
 
 (defparameter *resource* nil)
 
-;; # this function needs to return a unix-epoch timestamp in nanoseconds ai!
 (serapeum:defsubst timestamp ()
-  (local-time:format-timestring nil (local-time:now)))
+  "Returns the current time as Unix time in nanoseconds."
+  (let* ((now (local-time:now))
+         (unix-seconds (local-time:timestamp-to-unix now))
+         (nanos (local-time:nsec-of now)))
+    (+ (* unix-seconds 1000000000) nanos)))
 
 (defun generate-span-id ()
   (let ((bytes (make-array 8 :element-type '(unsigned-byte 8))))
