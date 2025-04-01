@@ -19,4 +19,10 @@
                (:file "src/exporter"))
   :description "")
 
-;; # add system definition for running tests. the only test file at the moment is tests/exporter.lisp ai!
+(defsystem "cl-otel-tests"
+  :version "0.1.0"
+  :author ""
+  :license "MIT"
+  :depends-on (:cl-otel
+               :parachute)
+  :components ((:file "tests/exporter")))
