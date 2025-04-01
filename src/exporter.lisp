@@ -11,8 +11,8 @@
            #:*tracer*      ; Export the active tracer instance var
            #:tracer-channel ; Export the channel reader
            #:otlp-endpoint ; Export the endpoint reader
-           #:run-exporter) ; Export the generic function/method name
-)
+           #:run-exporter)) ; Export the generic function/method name
+
 
 (in-package :opentelemetry.exporter)
 
@@ -87,8 +87,8 @@
 
 (defclass tracer ()
   ((channel :reader tracer-channel
-            :initform (calispel:make-channel :name "Trace Export Channel")
-            :documentation "The channel used to queue trace data for export.")
+            :initform (calispel:make-channel :name "tracer-export")
+            :documentation "The channel used to queue spans data for export.")
    (exporter-thread :accessor exporter-thread
                     :initform nil
                     :documentation "The thread running the exporter loop.")
@@ -97,6 +97,8 @@
                   :documentation "The OTLP HTTP endpoint URL for traces."))
   (:documentation "Manages the asynchronous export of trace spans."))
 
+;; # make a constructor function for the tracer, which takes the otlp endpoint and the channel buffer size. default the channel buffer to 100 ai!
+
 (defmethod run-exporter ((tracer tracer) &key (background t))
   "Starts the exporter loop for the given TRACER instance.
   If BACKGROUND is true (the default), runs the exporter in a new thread.
@@ -104,8 +106,7 @@
   (let ((endpoint (otlp-endpoint tracer))
         (channel (tracer-channel tracer)))
     (flet ((exporter-loop ()
-             ;; Call the original function that contains the loop logic
-             (run-exporter endpoint :channel channel)))
+             (do-run-exporter endpoint :channel channel)))
       (if background
           (progn
             (when (and (exporter-thread tracer) (bt:thread-alive-p (exporter-thread tracer)))
@@ -114,9 +115,7 @@
                   (bt:make-thread #'exporter-loop :name "OTLP Exporter Thread")))
           (exporter-loop))))) ; Run in current thread if background is nil
 
-;; This is the original function, now primarily called by the run-exporter method.
-;; It can still be called directly if needed, but requires manual channel provision.
-(defun run-exporter (otlp-endpoint &key channel)
+(defun do-run-exporter (otlp-endpoint &key channel)
   "Consumes serialized trace data from the specified CHANNEL and sends it
   via HTTP/protobuf to the OTLP-ENDPOINT.
 
