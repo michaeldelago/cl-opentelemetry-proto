@@ -6,12 +6,15 @@
            #:create-tracer
 
            #:*resource*
-           #:with-span))
+           #:with-span
+           #:*trace-channel*)) ; Export the new channel variable
 
 (in-package :opentelemetry.exporter)
 
 (defvar *current-span-id* nil)
 (defvar *trace-id* nil)
+(defvar *trace-channel* nil
+  "A calispel channel used to send trace data for asynchronous export.")
 
 (defparameter *resource* nil)
 
@@ -54,19 +57,21 @@
                                :name ,span-name
                                :kind ,span-kind
                                :start-time-unix-nano start-time))
+          ;; Note: resource-spans is created *before* the body runs and end-time is set.
+          ;; It will need to be re-serialized later if end-time is needed for export.
           (resource-spans (make-instance 'otel.trace:resource-spans
                                          :resource *resource*
                                          :scope-spans (vector (make-instance 'otel.trace:scope-spans
-                                                                             :spans (vector span)))))
-          (encoded-resource (cl-protobufs:serialize-to-bytes resource-spans)))
+                                                                             :spans (vector span))))))
      (unwind-protect
           (prog1
               ,@body
+            ;; Capture the end time after the body executes
             (setf end-time (timestamp)))
-       ;; # instead of directly sending the traces to an endpoint, send the data to a channel. Then, the tracer can consume that channel ai!
+       ;; Cleanup form: Set end time and send to channel
        (setf (otel.trace:end-time-unix-nano span) end-time)
-       (let ((collector-url "http://otel:4318/v1/traces"))
-         (ignore-errors
-          (dexador:post collector-url
-                        :headers '(:content-type "application/x-protobuf")
-                        :content encoded-resource))))))
+       ;; Re-encode the resource-spans *after* setting the end-time
+       (let ((final-encoded-resource (cl-protobufs:serialize-to-bytes resource-spans)))
+         (when *trace-channel*
+           ;; TODO: Add error handling for channel send?
+           (calispel:! *trace-channel* final-encoded-resource))))))
