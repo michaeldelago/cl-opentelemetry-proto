@@ -76,6 +76,8 @@
          (when *trace-channel*
            (calispel:! *trace-channel* final-encoded-resource))))))
 
+;; # write a class definition for a tracer. it should create it's own trace-channel, and it should have run-exporter as a method ai!
+
 (defun run-exporter (otlp-endpoint &key (channel *trace-channel*))
   "Consumes serialized trace data from the specified CHANNEL and sends it
   via HTTP/protobuf to the OTLP-ENDPOINT.
