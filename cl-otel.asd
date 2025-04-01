@@ -18,3 +18,5 @@
                (:file "src/opentelemetry/proto/collector/trace/v1/trace_service")
                (:file "src/exporter"))
   :description "")
+
+;; # add system definition for running tests. the only test file at the moment is tests/exporter.lisp ai!
