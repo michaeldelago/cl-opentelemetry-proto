@@ -32,13 +32,15 @@
                            (flet ((mock-post (url &key headers content &allow-other-keys)
                                     (declare (ignore url headers))
                                     (setf data-sent content)
-                                    (is string= data-sent "test-span-data" "data was sent to exporter"))))
+                                    ;; Assertion moved outside of mock-post
+                                    )))
                              (with-mocked-functions ((dexador:post #'mock-post))
                                (with-timeout 5 ;; Timeout to prevent indefinite blocking if something goes wrong
                                  (bordeaux-threads-2:make-thread (lambda ()
                                                                    (run-exporter tracer :background nil))
                                                                  :name "Exporter Test Thread")
-                                 (calispel:! test-channel "test-span-data")))))))
+                                 (calispel:! test-channel "test-span-data")))
+                             (parachute:is string= data-sent "test-span-data" "data was sent to exporter")))))
 
 
 
@@ -49,7 +51,7 @@
                            ;; Check if the timestamp is within a reasonable range of current time
                            (let ((current-unix-time (local-time:timestamp-to-unix (local-time:now))))
                              (is >= ts (* current-unix-time 1000000000) "timestamp is not in the past")
-                             (is < ts (* (+ current-unix-time 60) 1000000000) "timestamp is not too far in the future (within 60 seconds)")))))
+                             (is < ts (* (+ current-unix-time 60) 1000000000) "timestamp is not too far in the future (within 60 seconds)"))))
 
 (test-case test-generate-span-id
            (test-section "generate-span-id function"
