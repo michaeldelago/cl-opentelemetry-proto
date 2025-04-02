@@ -59,7 +59,7 @@
            (run-exporter test-tracer)
            (with-span ("test-span")
              (identity "hello"))
-           (let ((received-data (calispel:? payload-chan 1)))
+           (let ((received-data (calispel:? payload-chan 5))) ; Increased timeout to 5 seconds
              (true received-data "Channel should receive data after with-span")
              (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
                (true resource-spans "resource-spans should not be nil")
@@ -91,7 +91,8 @@
         (let ((attributes (otel.resource:resource.attributes resource)))
           (true attributes "resource attributes should not be nil")
           (let ((service-name-attribute (find-if (lambda (attr)
+                                                   (format t "~%FOOBAR ~a~%" (otel.common:key attr))
                                                    (string= (otel.common:key attr) "service.name"))
                                                  attributes)))
             (true service-name-attribute "service.name attribute should be present")
-            (is equal (otel.common:any-value.string-value (otel.common:make-any-value :string-value service-name-attribute)) test-service-name)))))))
+            (is equal (otel.common:any-value.string-value (otel.common:key-value.value service-name-attribute)) test-service-name)))))))

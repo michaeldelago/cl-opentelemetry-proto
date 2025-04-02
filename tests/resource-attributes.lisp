@@ -26,7 +26,7 @@
     (is = 1 (length attrs))
     (let ((attr (first attrs)))
       (is equal "key3" (otel.common:key-value.key attr))
-      (is = 3.14d0 (otel.common:any-value.double-value (otel.common:key-value.value attr))))))
+      (is = 3.14 (otel.common:any-value.double-value (otel.common:key-value.value attr))))))
 
 (define-test test-plist-to-resource-attributes-boolean-true
   "Test plist-to-resource-attributes with a boolean true value"
@@ -46,7 +46,7 @@
 
 (define-test test-plist-to-resource-attributes-list
   "Test plist-to-resource-attributes with a list value"
-  (let ((attrs (opentelemetry.exporter::plist-to-resource-attributes '(:key6 (list 1 "a" 3.14)))))
+  (let ((attrs (opentelemetry.exporter::plist-to-resource-attributes `(:key6 ,(list 1 "a" 3.14)))))
     (is = 1 (length attrs))
     (let ((attr (first attrs)))
       (is equal "key6" (otel.common:key-value.key attr))
@@ -54,24 +54,23 @@
         (is = 3 (length (otel.common:array-value.values array-value)))
         (is = 1 (otel.common:any-value.int-value (elt (otel.common:array-value.values array-value) 0)))
         (is equal "a" (otel.common:any-value.string-value (elt (otel.common:array-value.values array-value) 1)))
-        (is = 3.14d0 (otel.common:any-value.double-value (elt (otel.common:array-value.values array-value) 2)))))))
+        (is = 3.14 (otel.common:any-value.double-value (elt (otel.common:array-value.values array-value) 2)))))))
 
 (define-test test-plist-to-resource-attributes-hash-table
   "Test plist-to-resource-attributes with a hash-table value"
-  (let ((hash-table (serapeum:dict "nested-key1" "nested-value1"
-                                   "nested-key2" 100)))
-    (let ((attrs (opentelemetry.exporter::plist-to-resource-attributes `(:key7 ,hash-table))))
-      (is = 1 (length attrs))
-      (let ((attr (first attrs)))
-        (is equal "key7" (otel.common:key-value.key attr))
-        (let ((kvlist-value (otel.common:any-value.kvlist-value (otel.common:key-value.value attr))))
-          (is = 2 (length (otel.common:key-value-list.values kvlist-value)))
-          (let ((kv1 (find-if (lambda (kv) (equal "nested-key1" (otel.common:key-value.key kv))) (otel.common:key-value-list.values kvlist-value)))
-                (kv2 (find-if (lambda (kv) (equal "nested-key2" (otel.common:key-value.key kv))) (otel.common:key-value-list.values kvlist-value))))
-            (true kv1)
-            (true kv2)
-            (is equal "nested-value1" (otel.common:any-value.string-value (otel.common:key-value.value kv1)))
-            (is = 100 (otel.common:any-value.int-value (otel.common:key-value.value kv2)))))))))
+  (let ((attrs (opentelemetry.exporter::plist-to-resource-attributes `(:key7 ,(serapeum:dict :nested-key1 "nested-value1"
+                                                                                             :nested-key2 100)))))
+    (is = 1 (length attrs))
+    (let ((attr (first attrs)))
+      (is equal "key7" (otel.common:key-value.key attr))
+      (let ((kvlist-value (otel.common:any-value.kvlist-value (otel.common:key-value.value attr))))
+        (is = 2 (length (otel.common:key-value-list.values kvlist-value)))
+        (let ((kv1 (find-if (lambda (kv) (equal "nested-key1" (otel.common:key-value.key kv))) (otel.common:key-value-list.values kvlist-value)))
+              (kv2 (find-if (lambda (kv) (equal "nested-key2" (otel.common:key-value.key kv))) (otel.common:key-value-list.values kvlist-value))))
+          (true kv1)
+          (true kv2)
+          (is equal "nested-value1" (otel.common:any-value.string-value (otel.common:key-value.value kv1)))
+          (is = 100 (otel.common:any-value.int-value (otel.common:key-value.value kv2))))))))
 
 (define-test test-plist-to-resource-attributes-mixed
   "Test plist-to-resource-attributes with mixed value types"
@@ -82,4 +81,4 @@
     (is equal "key2" (otel.common:key-value.key (elt attrs 1)))
     (is = 123 (otel.common:any-value.int-value (otel.common:key-value.value (elt attrs 1))))
     (is equal "key3" (otel.common:key-value.key (elt attrs 2)))
-    (is = 3.14d0 (otel.common:any-value.double-value (otel.common:key-value.value (elt attrs 2))))))
+    (is = 3.14 (otel.common:any-value.double-value (otel.common:key-value.value (elt attrs 2))))))

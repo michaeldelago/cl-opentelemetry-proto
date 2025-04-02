@@ -46,19 +46,28 @@
       (setf (aref bytes i) (random 256)))
     bytes))
 
+(defun symbol-to-string (sym)
+  (typecase sym
+    (symbol (string-downcase (format nil "~a" sym)))
+    (t sym)))
+
 (defun get-otel-value (value)
   (typecase value
-    ((or keyword symbol) (otel.common:make-any-value :string-value (string-downcase (format nil "~a" value))))
+    (keyword (otel.common:make-any-value :string-value (symbol-to-string value)))
     (string (otel.common:make-any-value :string-value value))
     (integer (otel.common:make-any-value :int-value value))
-    (float (otel.common:make-any-value :double-value (coerce value 'double-float)))
-    (hash-table (otel.common:make-any-value :kvlist-value (otel.common:make-key-value-list :values (maphash (serapeum:op (otel.common:make-key-value :key _ :value _)) value))))
+    (float (otel.common:make-any-value :double-value (float value 1.0d0)))
+    (hash-table (otel.common:make-any-value :kvlist-value (otel.common:make-key-value-list :values (serapeum:maphash-return (serapeum:op (otel.common:make-key-value :key (symbol-to-string _) :value (get-otel-value _))) value))))
+    (null (otel.common:make-any-value :bool-value value))
     ((or list array) (otel.common:make-any-value :array-value (otel.common:make-array-value :values (map 'list #'get-otel-value value))))
-    (t (otel.common:make-any-value :string-value (format nil "~a" value)))))
+    (t (otel.common:make-any-value :bool-value (when (eq t value)
+                                                 value)
+                                   :string-value (unless (eq t value)
+                                                   (symbol-to-string value))))))
 
 (defun plist-to-resource-attributes (attrs)
   (loop for (key value) on attrs by #'cddr
-        collect (otel.common:make-key-value :key (string-downcase (princ key)) :value (get-otel-value value))))
+        collect (otel.common:make-key-value :key (symbol-to-string key) :value (get-otel-value value))))
 
 
 (defun create-resource (resource-attributes)
@@ -146,14 +155,14 @@
   This function runs in a loop and is intended to be run in a separate thread
   (usually managed by the 'tracer' class instance).
   It blocks until data is available on the channel."
-  (unless channel
-    (error "Trace channel is not provided or initialized."))
-  (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
-    (when serialized-spans
-      (print
-       (dexador:post otlp-endpoint
-                     :headers '((:content-type . "application/x-protobuf"))
-                     :content serialized-spans))))) ; Use raw-content for byte array
+  (loop do (progn
+             (unless channel
+               (error "Trace channel is not provided or initialized."))
+             (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
+               (when serialized-spans
+                 (dexador:post otlp-endpoint
+                               :headers '((:content-type . "application/x-protobuf"))
+                               :content serialized-spans)))))) ; Use raw-content for byte array
 ;; TODO: Implement more robust error handling and logging
 
 (defmacro with-resource ((service-name &rest attributes) &body body)
@@ -164,7 +173,5 @@
 
   Args:
       service-name (string): The name of the service to be associated with the resource."
-  `(let ((*resource* (create-resource
-                      (plist-to-resource-attributes
-                       (list :service.name ,service-name ,@attributes)))))
+  `(let ((*resource* (create-resource (list :service.name ,service-name ,@attributes))))
      ,@body))
