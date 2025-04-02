@@ -34,17 +34,14 @@
        (local-time:nsec-of now))))
 
 
+(serapeum:defsubst random-byte-array (size)
+  (map '(vector (unsigned-byte 8)) (lambda (x) (declare (ignorable x)) (random 256)) (cl-protobufs:make-byte-vector size :adjustable nil)))
+
 (defun generate-span-id ()
-  (let ((bytes (make-array 8 :element-type '(unsigned-byte 8))))
-    (dotimes (i 8)
-      (setf (aref bytes i) (random 256)))
-    bytes))
+  (random-byte-array 16))
 
 (defun generate-trace-id ()
-  (let ((bytes (make-array 16 :element-type '(unsigned-byte 8))))
-    (dotimes (i 16)
-      (setf (aref bytes i) (random 256)))
-    bytes))
+  (random-byte-array 32))
 
 (defun symbol-to-string (sym)
   (typecase sym

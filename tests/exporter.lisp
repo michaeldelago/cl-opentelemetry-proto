@@ -22,21 +22,21 @@
 (define-test test-generate-span-id
   (let ((span-id (generate-span-id)))
     (true (vectorp span-id))
-    (is equal (length span-id) 8)
+    (is equal (length span-id) 16)
     (true (every #'integerp span-id))))
 
 (define-test test-generate-trace-id
   (let ((trace-id (generate-trace-id)))
     (true (vectorp trace-id))
-    (is equal (length trace-id) 16)
+    (is equal (length trace-id) 32)
     (true (every #'integerp trace-id))))
 
 (define-test test-with-span
   (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
          (opentelemetry.exporter:*tracer* test-tracer))
     (with-span ("test-span")
-      (sleep 0.1)) ; Give a little time for the span to be processed
-    (let ((received-data (calispel:? (tracer-channel test-tracer) 1))) ; Check for data with a timeout
+      (sleep 0.1))
+    (let ((received-data (calispel:? (tracer-channel test-tracer) 1)))
       (true received-data "Channel should receive data after with-span"))))
 
 (define-test test-timestamp
@@ -59,7 +59,7 @@
            (run-exporter test-tracer)
            (with-span ("test-span")
              (identity "hello"))
-           (let ((received-data (calispel:? payload-chan 5))) ; Increased timeout to 5 seconds
+           (let ((received-data (calispel:? payload-chan 1)))
              (true received-data "Channel should receive data after with-span")
              (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
                (true resource-spans "resource-spans should not be nil")
@@ -91,7 +91,6 @@
         (let ((attributes (otel.resource:resource.attributes resource)))
           (true attributes "resource attributes should not be nil")
           (let ((service-name-attribute (find-if (lambda (attr)
-                                                   (format t "~%FOOBAR ~a~%" (otel.common:key attr))
                                                    (string= (otel.common:key attr) "service.name"))
                                                  attributes)))
             (true service-name-attribute "service.name attribute should be present")
