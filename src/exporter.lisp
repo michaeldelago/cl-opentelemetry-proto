@@ -1,7 +1,9 @@
 (defpackage opentelemetry.exporter
   (:use :cl)
   (:local-nicknames (#:otel.trace #:cl-protobufs.opentelemetry.proto.trace.v1)
-                    (#:bt2 #:bordeaux-threads)) ; Added bordeaux-threads
+                    (#:otel.resource #:cl-protobufs.opentelemetry.proto.resource.v1)
+                    (#:bt2 #:bordeaux-threads)
+                    (#:otel.common #:cl-protobufs.opentelemetry.proto.common.v1))
   (:export #:*current-span-id*
            #:*trace-id*
            #:create-resource
@@ -12,7 +14,8 @@
            #:*tracer*
            #:tracer-channel
            #:otlp-endpoint
-           #:run-exporter))
+           #:run-exporter
+           #:with-resource))
 
 
 (in-package :opentelemetry.exporter)
@@ -23,12 +26,13 @@
 
 (defparameter *resource* nil)
 
+(serapeum:-> timestamp () fixnum)
 (serapeum:defsubst timestamp ()
-  "Returns the current time as Unix time in nanoseconds."
-  (let* ((now (local-time:now))
-         (unix-seconds (local-time:timestamp-to-unix now))
-         (nanos (local-time:nsec-of now)))
-    (+ (* unix-seconds 1000000000) nanos)))
+  "Returns the current time as nanoseconds since the Unix epoch"
+  (let ((now (local-time:now)))
+    (+ (* (local-time:timestamp-to-unix now) 1000000000)
+       (local-time:nsec-of now))))
+
 
 (defun generate-span-id ()
   (let ((bytes (make-array 8 :element-type '(unsigned-byte 8))))
@@ -42,12 +46,23 @@
       (setf (aref bytes i) (random 256)))
     bytes))
 
+(defun get-otel-value (value)
+  (typecase value
+    ((or keyword symbol) (otel.common:make-any-value :string-value (string-downcase (format nil "~a" value))))
+    (string (otel.common:make-any-value :string-value value))
+    (integer (otel.common:make-any-value :int-value value))
+    (float (otel.common:make-any-value :double-value (coerce value 'double-float)))
+    (hash-table (otel.common:make-any-value :kvlist-value (otel.common:make-key-value-list :values (maphash (serapeum:op (otel.common:make-key-value :key _ :value _)) value))))
+    ((or list array) (otel.common:make-any-value :array-value (otel.common:make-array-value :values (map 'list #'get-otel-value value))))
+    (t (otel.common:make-any-value :string-value (format nil "~a" value)))))
+
+(defun plist-to-resource-attributes (attrs)
+  (loop for (key value) on attrs by #'cddr
+        collect (otel.common:make-key-value :key (string-downcase (princ key)) :value (get-otel-value value))))
+
 
 (defun create-resource (resource-attributes)
-  (make-instance 'otel.trace:resource-spans
-                 :resource (make-instance 'otel.trace:resource
-                                          :attributes (coerce resource-attributes 'vector))))
-
+  (otel.resource:make-resource :attributes (plist-to-resource-attributes resource-attributes)))
 
 (defmacro with-span ((span-name &key (span-kind :SPAN-KIND-INTERNAL)) &body body)
   `(let* ((*trace-id* (or opentelemetry.exporter:*trace-id* (generate-trace-id)))
@@ -55,19 +70,18 @@
           (*current-span-id* (generate-span-id))
           (start-time (timestamp))
           (end-time 0)                  ; Initialize end-time
-          (span (make-instance 'otel.trace:span
-                               :trace-id *trace-id*
-                               :span-id *current-span-id*
-                               :parent-span-id parent-span-id
-                               :name ,span-name
-                               :kind ,span-kind
-                               :start-time-unix-nano start-time))
+          (span (otel.trace:make-span
+                 :trace-id *trace-id*
+                 :span-id *current-span-id*
+                 :parent-span-id parent-span-id
+                 :name ,span-name
+                 :kind ,span-kind
+                 :start-time-unix-nano start-time))
           ;; Note: resource-spans is created *before* the body runs and end-time is set.
           ;; It will need to be re-serialized later if end-time is needed for export.
-          (resource-spans (make-instance 'otel.trace:resource-spans
-                                         :resource *resource*
-                                         :scope-spans (vector (make-instance 'otel.trace:scope-spans
-                                                                             :spans (vector span))))))
+          (resource-spans (otel.trace:make-resource-spans
+                           :resource *resource*
+                           :scope-spans (list (otel.trace:make-scope-spans :spans (list span))))))
      (unwind-protect
           (prog1
               ,@body
@@ -101,10 +115,13 @@
   Args:
     otlp-endpoint: The URL of the OTLP HTTP endpoint for traces.
     channel-buffer-size: The buffer size for the internal trace channel. Defaults to 100."
-  (make-instance 'tracer
-                 :otlp-endpoint otlp-endpoint
-                 :channel (make-instance 'calispel:channel :buffer channel-buffer-size
-                                                           :name "Trace Export Channel")))
+  (let ((buf (if (zerop channel-buffer-size)
+                 calispel:+null-queue+
+                 (make-instance 'jpl-queues:bounded-fifo-queue :capacity channel-buffer-size))))
+    (make-instance 'tracer
+                   :otlp-endpoint otlp-endpoint
+                   :channel (make-instance 'calispel:channel :buffer buf
+                                                             :name "Trace Export Channel"))))
 
 (defmethod run-exporter ((tracer tracer) &key (background t))
   "Starts the exporter loop for the given TRACER instance.
@@ -131,13 +148,23 @@
   It blocks until data is available on the channel."
   (unless channel
     (error "Trace channel is not provided or initialized."))
-  (loop
-    (let ((serialized-spans (the string (calispel:? channel)))) ; Blocks until data is available
-      (when serialized-spans
-        (handler-case
-            (dexador:post otlp-endpoint
-                          :headers '(:content-type "application/x-protobuf")
-                          :content serialized-spans)
-          ;; TODO: Implement more robust error handling and logging
-          (error (c)
-            (format *error-output* "~&Error exporting trace: ~A~%" c)))))))
+  (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
+    (when serialized-spans
+      (print
+       (dexador:post otlp-endpoint
+                     :headers '((:content-type . "application/x-protobuf"))
+                     :content serialized-spans))))) ; Use raw-content for byte array
+;; TODO: Implement more robust error handling and logging
+
+(defmacro with-resource ((service-name &rest attributes) &body body)
+  "Sets up the resource for tracing with a given service name within the lexical scope.
+
+  This macro establishes a resource with the 'service.name' attribute.
+  Spans created within this scope will be associated with this resource.
+
+  Args:
+      service-name (string): The name of the service to be associated with the resource."
+  `(let ((*resource* (create-resource
+                      (plist-to-resource-attributes
+                       (list :service.name ,service-name ,@attributes)))))
+     ,@body))

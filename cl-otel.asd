@@ -27,6 +27,8 @@
   :author ""
   :license "MIT"
   :depends-on (:cl-otel
-               :parachute)
-  :components ((:file "tests/exporter"))
-  :perform (test-op (op c) (uiop:symbol-call :parachute :test-package)))
+               :parachute
+               :hunchentoot)
+  :components ((:file "tests/exporter")
+               (:file "tests/resource-attributes"))
+  :perform (test-op (op c) (uiop:symbol-call :parachute :test :opentelemetry.exporter/tests)))
