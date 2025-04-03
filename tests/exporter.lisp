@@ -87,22 +87,22 @@
 
 (define-test test-nested-span-integration
   "Test for the tracer with a mock HTTP server"
-  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces"  :channel-buffer-size 10))
-
-         (opentelemetry.exporter:*tracer* test-tracer))
-    (run-exporter test-tracer)
-    (with-resource ("otel-cl-test")
+  (with-resource ("otel-cl-test")
+    (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces"  :channel-buffer-size 10 :export-timeout-ms 100 :max-spans-per-batch 1))
+           (opentelemetry.exporter:*tracer* test-tracer))
+      (run-exporter test-tracer)
       (with-span ("parent-span")
         (sleep 0.1)
         (let ((parent-span-id (otel.trace:span.span-id *span*)))
           (with-span ("child-span")
             (true parent-span-id)
             (is equal parent-span-id (otel.trace:span.parent-span-id *span*))
-            (sleep 0.1))))))
-  ;; (let ((span (calispel:? (tracer-channel test-tracer))))
-  ;;   (true span)
-  ;;   (print (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans span)))
-  (true t))
+            (sleep 1))))
+      (sleep 1))
+    ;; (let ((span (calispel:? (tracer-channel test-tracer))))
+    ;;   (true span)
+    ;;   (print (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans span)))
+    (true t)))
 
 (define-test test-with-resource
   "Test for the with-resource macro to set service.name"
