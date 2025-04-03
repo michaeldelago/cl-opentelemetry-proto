@@ -2,6 +2,7 @@
   (:use :cl)
   (:local-nicknames (#:otel.trace #:cl-protobufs.opentelemetry.proto.trace.v1)
                     (#:otel.resource #:cl-protobufs.opentelemetry.proto.resource.v1)
+                    (#:otel.service.trace #:cl-protobufs.opentelemetry.proto.collector.trace.v1)
                     (#:bt2 #:bordeaux-threads)
                     (#:otel.common #:cl-protobufs.opentelemetry.proto.common.v1))
   (:export #:*current-span-id*
@@ -12,19 +13,23 @@
            #:tracer
            #:make-tracer
            #:*tracer*
+           #:*span*
            #:tracer-channel
            #:otlp-endpoint
            #:run-exporter
            #:with-resource))
 
-
 (in-package :opentelemetry.exporter)
 
 (defvar *current-span-id* nil)
+(defvar *span* nil)
 (defvar *trace-id* nil)
 (defvar *tracer* nil "The currently active tracer instance.")
+(defvar *scope* (otel.common:make-instrumentation-scope :name "opentelemetry-cl" :version (slot-value (asdf:find-system 'cl-otel) 'asdf:version)))
 
 (defparameter *resource* nil)
+
+(make-random-state)
 
 (serapeum:-> timestamp () fixnum)
 (serapeum:defsubst timestamp ()
@@ -33,15 +38,15 @@
     (+ (* (local-time:timestamp-to-unix now) 1000000000)
        (local-time:nsec-of now))))
 
-
+(serapeum:-> random-byte-array (fixnum) (vector (unsigned-byte 8)))
 (serapeum:defsubst random-byte-array (size)
   (map '(vector (unsigned-byte 8)) (lambda (x) (declare (ignorable x)) (random 256)) (cl-protobufs:make-byte-vector size :adjustable nil)))
 
 (defun generate-span-id ()
-  (random-byte-array 16))
+  (random-byte-array 8))
 
 (defun generate-trace-id ()
-  (random-byte-array 32))
+  (random-byte-array 16))
 
 (defun symbol-to-string (sym)
   (typecase sym
@@ -66,7 +71,6 @@
   (loop for (key value) on attrs by #'cddr
         collect (otel.common:make-key-value :key (symbol-to-string key) :value (get-otel-value value))))
 
-
 (defun create-resource (resource-attributes)
   (otel.resource:make-resource :attributes (plist-to-resource-attributes resource-attributes)))
 
@@ -76,30 +80,24 @@
           (*current-span-id* (generate-span-id))
           (start-time (timestamp))
           (end-time 0)                  ; Initialize end-time
-          (span (otel.trace:make-span
-                 :trace-id *trace-id*
-                 :span-id *current-span-id*
-                 :parent-span-id parent-span-id
-                 :name ,span-name
-                 :kind ,span-kind
-                 :start-time-unix-nano start-time))
-          ;; Note: resource-spans is created *before* the body runs and end-time is set.
-          ;; It will need to be re-serialized later if end-time is needed for export.
-          (resource-spans (otel.trace:make-resource-spans
-                           :resource *resource*
-                           :scope-spans (list (otel.trace:make-scope-spans :spans (list span))))))
+          (*span* (otel.trace:make-span
+                   :trace-id *trace-id*
+                   :span-id *current-span-id*
+                   :parent-span-id parent-span-id
+                   :name ,span-name
+                   :kind ,span-kind
+                   :start-time-unix-nano start-time)))
      (unwind-protect
           (prog1
               ,@body
             ;; Capture the end time after the body executes
             (setf end-time (timestamp)))
        ;; Cleanup form: Set end time and send to channel
-       (setf (otel.trace:end-time-unix-nano span) end-time)
-       ;; Re-encode the resource-spans *after* setting the end-time
-       (let ((final-encoded-resource (cl-protobufs:serialize-to-bytes resource-spans)))
-         ;; Use the channel from the active *tracer* instance
-         (when (and *tracer* (tracer-channel *tracer*))
-           (calispel:! (tracer-channel *tracer*) final-encoded-resource))))))
+       (setf (otel.trace:end-time-unix-nano *span*) end-time)
+       ;; Use the channel from the active *tracer* instance
+       (when (and *tracer* (tracer-channel *tracer*))
+         (let ((resource-spans (otel.trace:make-resource-spans :resource *resource* :scope-spans (list (otel.trace:make-scope-spans :scope *scope* :spans (list *span*))))))
+           (calispel:! (tracer-channel *tracer*) resource-spans))))))
 
 
 (defclass tracer ()
@@ -126,41 +124,42 @@
                  (make-instance 'jpl-queues:bounded-fifo-queue :capacity channel-buffer-size))))
     (make-instance 'tracer
                    :otlp-endpoint otlp-endpoint
-                   :channel (make-instance 'calispel:channel :buffer buf
-                                                             :name "Trace Export Channel"))))
+                   :channel (make-instance 'calispel:channel :buffer buf :name "Trace Export Channel"))))
 
 (defmethod run-exporter ((tracer tracer) &key (background t))
   "Starts the exporter loop for the given TRACER instance.
   If BACKGROUND is true (the default), runs the exporter in a new thread.
   Otherwise, runs in the current thread (blocking)."
-  (let ((endpoint (otlp-endpoint tracer))
-        (channel (tracer-channel tracer)))
-    (flet ((exporter-loop ()
-             (do-run-exporter endpoint :channel channel)))
-      (if background
-          (progn
-            (when (and (exporter-thread tracer) (bt2:thread-alive-p (exporter-thread tracer)))
-              (error "Exporter thread is already running for this tracer."))
-            (setf (exporter-thread tracer)
-                  (bt2:make-thread #'exporter-loop :name "OTLP Exporter Thread")))
-          (exporter-loop))))) ; Run in current thread if background is nil
+  (flet ((exporter-loop ()
+           (do-run-exporter tracer)))
+    (if background
+        (progn
+          (when (and (exporter-thread tracer) (bt2:thread-alive-p (exporter-thread tracer)))
+            (error "Exporter thread is already running for this tracer."))
+          (setf (exporter-thread tracer)
+                (bt2:make-thread #'exporter-loop :name "OTLP Exporter Thread")))
+        (exporter-loop)))) ; Run in current thread if background is nil
 
-(defun do-run-exporter (otlp-endpoint &key channel)
+(defmethod do-run-exporter ((tracer tracer))
   "Consumes serialized trace data from the specified CHANNEL and sends it
   via HTTP/protobuf to the OTLP-ENDPOINT.
 
   This function runs in a loop and is intended to be run in a separate thread
   (usually managed by the 'tracer' class instance).
   It blocks until data is available on the channel."
-  (loop do (progn
-             (unless channel
-               (error "Trace channel is not provided or initialized."))
-             (let ((serialized-spans (calispel:? channel))) ; Blocks until data is available
-               (when serialized-spans
-                 (dexador:post otlp-endpoint
+  (loop
+    do (progn
+         (unless (tracer-channel tracer)
+           (error "Trace channel is not provided or initialized."))
+         (alexandria:when-let ((resource-spans (calispel:? (tracer-channel tracer))))
+           (handler-case
+               (progn
+                 (dexador:post (otlp-endpoint tracer)
                                :headers '((:content-type . "application/x-protobuf"))
-                               :content serialized-spans)))))) ; Use raw-content for byte array
-;; TODO: Implement more robust error handling and logging
+                               :content (cl-protobufs:serialize-to-bytes (otel.service.trace:make-export-trace-service-request :resource-spans (list resource-spans)))))
+             (error (c)
+               (let ((err (format nil "~a" c)))
+                 (log:error "exporting spans" err))))))))
 
 (defmacro with-resource ((service-name &rest attributes) &body body)
   "Sets up the resource for tracing with a given service name within the lexical scope.
@@ -170,5 +169,6 @@
 
   Args:
       service-name (string): The name of the service to be associated with the resource."
+  (make-random-state)
   `(let ((*resource* (create-resource (list :service.name ,service-name ,@attributes))))
      ,@body))

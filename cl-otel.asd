@@ -5,6 +5,7 @@
   :depends-on (:bordeaux-threads
                :calispel
                :dexador
+               :log4cl
                :serapeum
                :cl-protobufs)
   :defsystem-depends-on ()
