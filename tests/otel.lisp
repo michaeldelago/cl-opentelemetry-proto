@@ -165,74 +165,87 @@
           (true test-attribute "Test attribute should be present")
           (is equal (otel.common:any-value.string-value (otel.common:key-value.value test-attribute)) attribute-value))))))
 
-;; (define-test test-span-kind-internal
-;;   "Test creating a span with SPAN-KIND-INTERNAL"
-;;   (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
-;;          (opentelemetry:*tracer* test-tracer))
-;;     (with-span ("internal-span" :span-kind :span-kind-internal)
-;;       (sleep 0.1))
-;;     (let ((received-data (calispel:? (tracer-channel test-tracer) 1)))
-;;       (true received-data "Channel should receive data after with-span")
-;;       (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
-;;         (let ((scope-spans (first (otel.trace:resource-spans.scope-spans resource-spans))))
-;;           (let ((span (first (otel.trace:scope-spans.spans scope-spans))))
-;;             (is equal (otel.trace:span.kind span) :span-kind-internal)))))))
+(define-test test-span-kind-internal
+  "Test creating a span with SPAN-KIND-INTERNAL"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
+         (opentelemetry:*tracer* test-tracer))
+    (with-span ("internal-span" :span-kind :span-kind-internal)
+      (sleep 0.1))
+    (let ((span (calispel:? (tracer-channel test-tracer) 1)))
+      (true span "Channel should receive data after with-span")
+      (is equal (otel.trace:span.kind span) :span-kind-internal))))
 
-;; (define-test test-span-kind-server
-;;   "Test creating a span with SPAN-KIND-SERVER"
-;;   (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
-;;          (opentelemetry:*tracer* test-tracer))
-;;     (with-span ("server-span" :span-kind :span-kind-server)
-;;       (sleep 0.1))
-;;     (let ((received-data (calispel:? (tracer-channel test-tracer) 1)))
-;;       (true received-data "Channel should receive data after with-span")
-;;       (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
-;;         (let ((scope-spans (first (otel.trace:resource-spans.scope-spans resource-spans))))
-;;           (let ((span (first (otel.trace:scope-spans.spans scope-spans))))
-;;             (is equal (otel.trace:span.kind span) :span-kind-server)))))))
+(define-test test-span-kind-server
+  "Test creating a span with SPAN-KIND-SERVER"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
+         (opentelemetry:*tracer* test-tracer))
+    (with-span ("server-span" :span-kind :span-kind-server)
+      (sleep 0.1))
+    (let ((span (calispel:? (tracer-channel test-tracer) 1)))
+      (true span "Channel should receive data after with-span")
+      (is equal (otel.trace:span.kind span) :span-kind-server))))
 
-;; (define-test test-span-kind-client
-;;   "Test creating a span with SPAN-KIND-CLIENT"
-;;   (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
-;;          (opentelemetry:*tracer* test-tracer))
-;;     (with-span ("client-span" :span-kind :span-kind-client)
-;;       (sleep 0.1))
-;;     (let ((received-data (calispel:? (tracer-channel test-tracer) 1)))
-;;       (true received-data "Channel should receive data after with-span")
-;;       (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
-;;         (let ((scope-spans (first (otel.trace:resource-spans.scope-spans resource-spans))))
-;;           (let ((span (first (otel.trace:scope-spans.spans scope-spans))))
-;;             (is equal (otel.trace:span.kind span) :span-kind-client)))))))
+(define-test test-span-kind-client
+  "Test creating a span with SPAN-KIND-CLIENT"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
+         (opentelemetry:*tracer* test-tracer))
+    (with-span ("client-span" :span-kind :span-kind-client)
+      (sleep 0.1))
+    (let ((span (calispel:? (tracer-channel test-tracer) 1)))
+      (true span "Channel should receive data after with-span")
+      (is equal (otel.trace:span.kind span) :span-kind-client))))
 
-;; (define-test test-span-kind-producer
-;;   "Test creating a span with SPAN-KIND-PRODUCER"
-;;   (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
-;;          (opentelemetry:*tracer* test-tracer))
-;;     (with-span ("producer-span" :span-kind :span-kind-producer)
-;;       (sleep 0.1))
-;;     (let ((received-data (calispel:? (tracer-channel test-tracer) 1)))
-;;       (true received-data "Channel should receive data after with-span")
-;;       (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
-;;         (let ((scope-spans (first (otel.trace:resource-spans.scope-spans resource-spans))))
-;;           (let ((span (first (otel.trace:scope-spans.spans scope-spans))))
-;;             (is equal (otel.trace:span.kind span) :span-kind-producer)))))))
+(define-test test-span-kind-producer
+  "Test creating a span with SPAN-KIND-PRODUCER"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
+         (opentelemetry:*tracer* test-tracer))
+    (with-span ("producer-span" :span-kind :span-kind-producer)
+      (sleep 0.1))
+    (let ((span (calispel:? (tracer-channel test-tracer) 1)))
+      (true span "Channel should receive data after with-span")
+      (is equal (otel.trace:span.kind span) :span-kind-producer))))
 
-;; (define-test test-span-kind-consumer
-;;   "Test creating a span with SPAN-KIND-CONSUMER"
-;;   (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
-;;          (opentelemetry:*tracer* test-tracer))
-;;     (with-span ("consumer-span" :span-kind :span-kind-consumer)
-;;       (sleep 0.1))
-;;     (let ((received-data (calispel:? (tracer-channel test-tracer) 1)))
-;;       (true received-data "Channel should receive data after with-span")
-;;       (let ((resource-spans (cl-protobufs:deserialize-from-bytes 'otel.trace:resource-spans received-data)))
-;;         (let ((scope-spans (first (otel.trace:resource-spans.scope-spans resource-spans))))
-;;           (let ((span (first (otel.trace:scope-spans.spans scope-spans))))
-;;             (is equal (otel.trace:span.kind span) :span-kind-consumer)))))))
+(define-test test-span-kind-consumer
+  "Test creating a span with SPAN-KIND-CONSUMER"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10))
+         (opentelemetry:*tracer* test-tracer))
+    (with-span ("consumer-span" :span-kind :span-kind-consumer)
+      (sleep 0.1))
+    (let ((span (calispel:? (tracer-channel test-tracer) 1)))
+      (true span "Channel should receive data after with-span")
+      (is equal (otel.trace:span.kind span) :span-kind-consumer))))
 
-;; TODO: Test setting attributes with different data types (string, integer, float, boolean, array, map)
+
+(define-test test-set-span-status-ok
+  "Test setting the span status to OK"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+         (opentelemetry:*tracer* test-tracer))
+    (with-resource ("test-service")
+      (with-span ("status-span")
+        (opentelemetry:set-span-status-ok "Operation completed successfully")
+        (sleep 0.1))
+      (let* ((span (calispel:? (tracer-channel test-tracer) 10)))
+        (true span "Span should not be nil")
+        (let ((status (otel.trace:span.status span)))
+          (is equal (otel.trace:status.code status) :status-code-ok)
+          (is equal (otel.trace:status.message status) "Operation completed successfully"))))))
+
+(define-test test-set-span-status-error
+  "Test setting the span status to ERROR"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+         (opentelemetry:*tracer* test-tracer))
+    (with-resource ("test-service")
+      (with-span ("status-span")
+        (opentelemetry:set-span-status-error "Operation failed")
+        (sleep 0.1))
+      (let* ((span (calispel:? (tracer-channel test-tracer) 10)))
+        (true span "Span should not be nil")
+        (let ((status (otel.trace:span.status span)))
+          (is equal (otel.trace:status.code status) :status-code-error)
+          (is equal (otel.trace:status.message status) "Operation failed"))))))
+
+
 ;; TODO: Test setting events on spans
-;; TODO: Test setting span status (OK, ERROR, UNSET)
 ;; TODO: Test resource attributes more thoroughly, including different attribute types and combinations
 ;; TODO: Test different configurations of the tracer (e.g., different buffer sizes, export timeouts, batch sizes)
 ;; TODO: Test error handling in the exporter

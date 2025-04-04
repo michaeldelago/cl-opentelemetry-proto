@@ -17,7 +17,10 @@
            #:otlp-endpoint
            #:run-exporter
            #:with-resource
-           #:set-span-attribute))
+           #:set-span-attribute
+           #:set-span-status
+           #:set-span-status-ok
+           #:set-span-status-error))
 
 (in-package :opentelemetry)
 

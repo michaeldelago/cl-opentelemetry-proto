@@ -31,3 +31,18 @@
       (setf (otel.trace:span.attributes *span*)
             (append current-attributes
                     (list (otel.common:make-key-value :key (symbol-to-string key) :value (get-otel-value value))))))))
+
+
+(defun set-span-status-ok (&optional description)
+  (set-span-status :status-code-ok description))
+
+(defun set-span-status-error (&optional description)
+  (set-span-status :status-code-error description))
+
+(defun set-span-status (status &optional description)
+  "Set the status of the current span."
+  (when *span*
+    (setf (otel.trace:span.status *span*)
+          (otel.trace:make-status
+           :code status
+           :message description))))
