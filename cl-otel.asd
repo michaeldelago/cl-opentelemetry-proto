@@ -18,7 +18,10 @@
                (:file "src/opentelemetry/proto/collector/logs/v1/logs_service")
                (:file "src/opentelemetry/proto/collector/metrics/v1/metrics_service")
                (:file "src/opentelemetry/proto/collector/trace/v1/trace_service")
-               (:file "src/exporter"))
+               (:file "src/package")
+               (:file "src/util")
+               (:file "src/otel")
+               (:file "src/span"))
   :description ""
   :in-order-to ((test-op (test-op "cl-otel/tests"))))
 
@@ -30,6 +33,6 @@
   :depends-on (:cl-otel
                :parachute
                :hunchentoot)
-  :components ((:file "tests/exporter")
+  :components ((:file "tests/otel")
                (:file "tests/resource-attributes"))
-  :perform (test-op (op c) (uiop:symbol-call :parachute :test :opentelemetry.exporter/tests)))
+  :perform (test-op (op c) (uiop:symbol-call :parachute :test :opentelemetry/tests)))
