@@ -244,9 +244,30 @@
           (is equal (otel.trace:status.code status) :status-code-error)
           (is equal (otel.trace:status.message status) "Operation failed"))))))
 
-
-;; TODO: Test setting events on spans
-;; TODO: Test resource attributes more thoroughly, including different attribute types and combinations
-;; TODO: Test different configurations of the tracer (e.g., different buffer sizes, export timeouts, batch sizes)
-;; TODO: Test error handling in the exporter
-;; TODO: Test sampling
+(define-test test-set-span-event
+  "Test setting an event on the current span"
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+         (opentelemetry:*tracer* test-tracer)
+         (event-name "test-event")
+         (event-attributes '(:attribute1 "value1" :attribute2 123)))
+    (with-resource ("test-service")
+      (with-span ("event-span")
+        (opentelemetry:new-span-event event-name event-attributes)
+        (sleep 0.1))
+      (let* ((span (calispel:? (tracer-channel test-tracer) 10))
+             (events (otel.trace:span.events span)))
+        (true events "Span events should not be nil")
+        (let ((test-event (find-if (lambda (event)
+                                     (string= (otel.trace:span.event.name event) event-name))
+                                   events)))
+          (true test-event "Test event should be present")
+          (let ((attribute1 (find-if (lambda (attr)
+                                       (string= (otel.common:key attr) "attribute1"))
+                                     (otel.trace:span.event.attributes test-event))))
+            (true attribute1 "attribute1 should be present in event")
+            (is equal (otel.common:any-value.string-value (otel.common:key-value.value attribute1)) "value1"))
+          (let ((attribute2 (find-if (lambda (attr)
+                                       (string= (otel.common:key attr) "attribute2"))
+                                     (otel.trace:span.event.attributes test-event))))
+            (true attribute2 "attribute2 should be present in event")
+            (is equal (otel.common:any-value.int-value (otel.common:key-value.value attribute2)) 123)))))))

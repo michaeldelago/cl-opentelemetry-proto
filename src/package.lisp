@@ -20,7 +20,8 @@
            #:set-span-attribute
            #:set-span-status
            #:set-span-status-ok
-           #:set-span-status-error))
+           #:set-span-status-error
+           #:new-span-event))
 
 (in-package :opentelemetry)
 

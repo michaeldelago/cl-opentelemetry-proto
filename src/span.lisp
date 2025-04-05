@@ -94,3 +94,27 @@
           (otel.trace:make-status
            :code status
            :message description))))
+
+(defun new-span-event (name attributes)
+  "Add a new event to the current span.
+
+  Events are points in time during a Span's execution, used to add pre-defined attribute information in key-value format.
+
+  - NAME: A string or symbol representing the name of the event.
+  - ATTRIBUTES (plist, optional): A property list of attributes to associate with the event. Keys should be symbols or strings, and values should be valid attribute types (strings, numbers, booleans, or lists of these).
+
+  Example:
+
+    (with-span (\"my-operation\")
+      (new-span-event \"log.message\" '(:message \"Something happened\" :severity \"INFO\"))
+      ;; Code to be traced within the span
+      (do-something))
+  "
+  (when *span*
+    (let ((current-events (or (otel.trace:span.events *span*) (list)))
+          (event (otel.trace:make-span.event
+                  :name name
+                  :attributes (plist-to-attributes attributes)
+                  :time-unix-nano (timestamp))))
+      (setf (otel.trace:span.events *span*)
+            (append current-events (list event))))))
