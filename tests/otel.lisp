@@ -271,3 +271,9 @@
                                      (otel.trace:span.event.attributes test-event))))
             (true attribute2 "attribute2 should be present in event")
             (is equal (otel.common:any-value.int-value (otel.common:key-value.value attribute2)) 123)))))))
+
+;; TODO: semantic conventions
+;; TODO: Test resource attributes more thoroughly, including different attribute types and combinations
+;; TODO: Test different configurations of the tracer (e.g., different buffer sizes, export timeouts, batch sizes)
+;; TODO: Test error handling in the exporter
+;; TODO: Test sampling
