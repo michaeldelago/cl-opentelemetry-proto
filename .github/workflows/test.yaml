@@ -1,0 +1,34 @@
+name: Run Tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        lisp:
+          - sbcl-bin
+          - ccl-bin
+    env:
+      LISP: ${{ matrix.lisp }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: 40ants/setup-lisp@v4
+        with:
+          roswell-version: v24.10.115
+          qlot-version: 1.6.0
+      - uses: 40ants/run-tests@v2
+        with:
+          asdf-system: cl-info
+
+      - name: Run tests
+        shell: bash
+        run: |
+          export PATH=$PATH:$HOME/.roswell/bin
+          qlot exec ros run -s cl-otel -e '(asdf:test-system :cl-otel)' -- --non-interactive

@@ -21,6 +21,7 @@
            #:set-span-status
            #:set-span-status-ok
            #:set-span-status-error
+           #:call-with-span
            #:new-span-event))
 
 (in-package :opentelemetry)

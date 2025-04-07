@@ -7,6 +7,10 @@
     (+ (* (local-time:timestamp-to-unix now) 1000000000)
        (local-time:nsec-of now))))
 
+(serapeum:-> timestamp-seconds () fixnum)
+(serapeum:defsubst timestamp-seconds ()
+  (local-time:timestamp-to-unix (local-time:now)))
+
 (serapeum:-> random-byte-array (fixnum) (vector (unsigned-byte 8)))
 (serapeum:defsubst random-byte-array (size)
   (map '(vector (unsigned-byte 8)) (lambda (x) (declare (ignorable x)) (random 256)) (cl-protobufs:make-byte-vector size :adjustable nil)))

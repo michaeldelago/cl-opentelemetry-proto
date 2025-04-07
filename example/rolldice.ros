@@ -1,0 +1,53 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  #+quicklisp(ql:quickload '(:hunchentoot :serapeum :easy-routes :cl-otel) :silent t))
+
+(defpackage :ros.script.rolldice.3952946413
+  (:use :cl :easy-routes))
+(in-package :ros.script.rolldice.3952946413)
+
+(defmethod hunchentoot:handle-request :around ((acceptor t) request)
+  ;; Wrap each http request in a fancy span
+  (let* ((method (hunchentoot:request-method request))
+         (uri (hunchentoot:request-uri request))
+         (span-name (format nil "~a ~a" method uri)))
+    (opentelemetry:with-span (span-name :span-kind :span-kind-server :attributes `(:http.method ,method :http.url ,uri))
+      (call-next-method))))
+
+
+(defclass tracing-taskmaster (hunchentoot:one-thread-per-connection-taskmaster) ())
+(defmethod hunchentoot:start-thread ((tm tracing-taskmaster) thunk &key name)
+  (bt2:make-thread
+   ;; The taskmaster for hunchentoot starts the thread - we need to make sure the special vars propagate into the new threads properly.
+   (serapeum:dynamic-closure '(opentelemetry:*tracer*
+                               opentelemetry:*trace-id*
+                               opentelemetry:*span*
+                               opentelemetry:*current-span-id*)
+                             thunk)
+   :name name))
+
+(defroute rolldice-endpoint ("/rolldice/:player" :method :get) ()
+  (let ((player (hunchentoot:url-decode player))
+        (roll (prog1 (1+ (random 6))
+                (opentelemetry:new-span-event "roll dice" nil))))
+    (format nil "~a: ~A~%" player roll)))
+
+(defparameter *server* nil)
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (log:config :debug)
+  (opentelemetry:with-resource ("rolldice")
+    (let* ((opentelemetry:*tracer* (opentelemetry:make-tracer "http://localhost:4318/v1/traces" :max-spans-per-batch 1 :export-timeout 1)))
+      (opentelemetry:run-exporter opentelemetry:*tracer*)
+      (setf *server* (make-instance 'easy-routes:easy-routes-acceptor :port 8080 :taskmaster (make-instance 'tracing-taskmaster)))
+      (hunchentoot:start *server*))
+    ;; lazy way of keep this server on for a short amount of time.
+    ;; don't do this in prod, and if you do, engineer for HA
+    (sleep 60)))
+
+;;; vim: set ft=lisp lisp:

@@ -26,6 +26,7 @@
   (serapeum:with-thunk (body)
     `(call-with-span ,span-name ,body :span-kind ,span-kind :attributes ,attributes)))
 
+;; (trace calispel:?)
 (defun call-with-span (span-name thunk &key (span-kind :SPAN-KIND-INTERNAL) attributes)
   "Create and execute a span with explicit control over the thunk.
 
@@ -48,6 +49,8 @@
 
     (call-with-span \"my-async-operation\" (lambda () (do-async-work)) :span-kind :SPAN-KIND-CLIENT)
   "
+  (unless *tracer*
+    (warn "tracer is nil"))
   (let* ((*trace-id* (or opentelemetry:*trace-id* (generate-trace-id)))
          (parent-span-id opentelemetry:*current-span-id*)
          (*current-span-id* (generate-span-id))
@@ -69,8 +72,9 @@
       ;; Cleanup form: Set end time and send to channel
       (setf (otel.trace:end-time-unix-nano *span*) end-time)
       ;; Use the channel from the active *tracer* instance
-      (when (and *tracer* (tracer-channel *tracer*))
-        (calispel:! (tracer-channel *tracer*) *span*)))))
+      (if (and *tracer* (tracer-channel *tracer*))
+          (calispel:! (tracer-channel *tracer*) *span*)
+          (log:error "tracer or tracer-channel is nil" (null *tracer*))))))
 
 (defun set-span-attribute (key value)
   "Set an attribute on the current span."

@@ -15,23 +15,23 @@
                   :initarg :otlp-endpoint
                   :documentation "The OTLP HTTP endpoint URL for traces.")
    (max-spans-per-batch :initarg :max-spans-per-batch
-                        :reader tracer-max-spans-per-batch
+                        :reader max-spans-per-batch
                         :initform 100
                         :documentation "Maximum number of spans to include in a single batch export.")
-   (export-timeout-ms :initarg :export-timeout-ms
-                      :reader tracer-export-timeout-ms
-                      :initform 5000
-                      :documentation "Maximum time (in milliseconds) to wait before exporting a batch of spans."))
+   (export-timeout :initarg :export-timeout
+                   :reader max-export-timeout
+                   :initform 5
+                   :documentation "Maximum time (in milliseconds) to wait before exporting a batch of spans."))
   (:documentation "Manages the asynchronous export of trace spans."))
 
-(defun make-tracer (otlp-endpoint &key (channel-buffer-size 100) (max-spans-per-batch 100) (export-timeout-ms 5000))
+(defun make-tracer (otlp-endpoint &key (channel-buffer-size 100) (max-spans-per-batch 100) (export-timeout 5))
   "Creates and returns a new TRACER instance.
 
   Args:
     otlp-endpoint: The URL of the OTLP HTTP endpoint for traces.
     channel-buffer-size: The buffer size for the internal trace channel. Defaults to 100.
     max-spans-per-batch: Maximum number of spans to include in a single batch export. Defaults to 100.
-    export-timeout-ms: Maximum time (in milliseconds) to wait before exporting a batch of spans. Defaults to 5000."
+    export-timeout: Maximum time (in milliseconds) to wait before exporting a batch of spans. Defaults to 5000."
   (let ((buf (if (zerop channel-buffer-size)
                  calispel:+null-queue+
                  (make-instance 'jpl-queues:bounded-fifo-queue :capacity channel-buffer-size))))
@@ -39,7 +39,7 @@
                    :otlp-endpoint otlp-endpoint
                    :channel (make-instance 'calispel:channel :buffer buf :name "Trace Export Channel")
                    :max-spans-per-batch max-spans-per-batch
-                   :export-timeout-ms export-timeout-ms)))
+                   :export-timeout export-timeout)))
 
 (defmethod run-exporter ((tracer tracer) &key (background t))
   "Starts the exporter loop for the given TRACER instance.
@@ -62,10 +62,9 @@
   This function runs in a loop and is intended to be run in a separate thread
   (usually managed by the 'tracer' class instance).
   It blocks until data is available on the channel."
-  ;; use an array instead of a list for the span buffer so we don't have to keep creating a list ai!
-  (let ((span-buffer (make-array 0 :adjustable t :fill-pointer t))
+  (let ((span-buffer (list))
         (span-count 0)
-        (last-export-time (timestamp)))
+        (last-export-time (timestamp-seconds)))
     (loop
       do (progn
            (unless (tracer-channel tracer)
@@ -75,23 +74,37 @@
            (unless *scope*
              (error "scope is nil"))
            (alexandria:when-let ((span (calispel:? (tracer-channel tracer) 0.1)))
-             (vector-push-extend span span-buffer)
+             (push span span-buffer)
              (incf span-count))
-           (when (or (>= span-count (tracer-max-spans-per-batch tracer))
-                     (>= (- (timestamp) last-export-time) (* (tracer-export-timeout-ms tracer) 1000000))) ; Convert ms to ns
+           (when (or (>= span-count (max-spans-per-batch tracer))
+                     (>= (- (timestamp-seconds) last-export-time) (max-export-timeout tracer)))
              (when (> (length span-buffer) 0)
-               (handler-case
-                   (progn
-                     (let ((resource-spans (otel.trace:make-resource-spans :resource *resource* :scope-spans (list (otel.trace:make-scope-spans :scope *scope* :spans (coerce span-buffer 'list))))))
-                       (dexador:post (otlp-endpoint tracer)
-                                     :headers '((:content-type . "application/x-protobuf"))
-                                     :content (cl-protobufs:serialize-to-bytes (otel.service.trace:make-export-trace-service-request :resource-spans (list resource-spans))))))
-                 (error (c)
-                   (let ((err (format nil "Error exporting spans: ~a" c)))
-                     (log:error "exporting spans" err))))
-               (setf (fill-pointer span-buffer) 0)
-               (setf span-count 0)
-               (setf last-export-time (timestamp))))))))
+               (log:debug "sending spans")
+               (progn
+                 (let* ((scope-spans (otel.trace:make-scope-spans :scope *scope*
+                                                                  :spans span-buffer))
+                        (resource-spans (otel.trace:make-resource-spans :resource *resource*
+                                                                        :scope-spans (list scope-spans)))
+                        (raw-req (otel.service.trace:make-export-trace-service-request :resource-spans (list resource-spans)))
+                        (request-content (cl-protobufs:serialize-to-bytes raw-req 'otel.service.trace:export-trace-service-request)))
+                   (multiple-value-bind (body status)
+                       (handler-case
+                           (dexador:post (otlp-endpoint tracer)
+                                         :headers '((:content-type . "application/x-protobuf"))
+                                         :content request-content)
+                         (error (c)
+                           (let ((err (format nil "Error exporting spans: ~a" c)))
+                             (log:error "exporting spans" err))))))
+                 ;; (let ((decoded-response (cl-protobufs:deserialize-from-bytes 'otel.service.trace:export-trace-service-response body)))
+                 ;;   (log:info "otel collector result" status decoded-response))
+
+                 (setf span-buffer nil)
+                 (setf span-count 0)
+                 (setf last-export-time (timestamp-seconds)))))))))
+
+(defun alist-with (alist &rest pairs)
+  alist)
+;; (append pairs alist))
 
 (defmacro with-resource ((service-name &rest attributes) &body body)
   "Sets up the resource for tracing with a given service name within the lexical scope.
@@ -102,5 +115,12 @@
   Args:
       service-name (string): The name of the service to be associated with the resource."
   (make-random-state)
-  `(let ((*resource* (create-resource (list :service.name ,service-name ,@attributes))))
+  `(let ((*resource* (create-resource (list :service.name ,service-name ,@attributes)))
+         (bt2:*default-special-bindings* (alist-with bt2:*default-special-bindings*
+                                                     (cons *current-span-id* *current-span-id*)
+                                                     (cons *span* *span*)
+                                                     (cons *trace-id* *trace-id*)
+                                                     (cons *tracer* *tracer*)
+                                                     (cons *scope* *scope*)
+                                                     (cons *resource* *resource*))))
      ,@body))
