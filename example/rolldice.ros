@@ -16,7 +16,9 @@ exec ros -Q -- $0 "$@"
   (let* ((method (hunchentoot:request-method request))
          (uri (hunchentoot:request-uri request))
          (span-name (format nil "~a ~a" method uri)))
-    (opentelemetry:with-span (span-name :span-kind :span-kind-server :attributes `(:http.method ,method :http.url ,uri))
+    (opentelemetry:with-span (span-name :span-kind :span-kind-server
+                                        :attributes `(:http.method ,method
+                                                      :http.url ,uri))
       (call-next-method))))
 
 

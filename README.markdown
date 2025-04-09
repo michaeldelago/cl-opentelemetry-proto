@@ -27,8 +27,8 @@ To use the opentelemetry exporter in your Common Lisp application, follow these 
 
 2. **Create a Tracer**: Instantiate a tracer, providing the OTLP endpoint where you want to send your telemetry data. For example, to send traces to a local OTLP collector at `http://localhost:4318/v1/traces`:
    ```lisp
-   (defvar my-tracer (opentelemetry:make-tracer "http://localhost:4318/v1/traces"))
-   (setf opentelemetry:*tracer* my-tracer)
+   (let ((opentelemetry:*tracer* (opentelemetry:make-tracer "http://localhost:4318/v1/traces")))
+     (print "do something"))
    ```
    You can configure the tracer with options like `channel-buffer-size`, `max-spans-per-batch`, and `export-timeout-ms` if needed.
 
