@@ -30,7 +30,7 @@ To use the opentelemetry exporter in your Common Lisp application, follow these 
    (let ((opentelemetry:*tracer* (opentelemetry:make-tracer "http://localhost:4318/v1/traces")))
      (print "do something"))
    ```
-   You can configure the tracer with options like `channel-buffer-size`, `max-spans-per-batch`, and `export-timeout-ms` if needed.
+   You can configure the tracer with options like `channel-buffer-size`, `max-spans-per-batch`, and `export-timeout` if needed.
 
 3. **Set up a Resource**: Define a resource that represents your service or application. This resource will be associated with all spans created within its scope. Use the `with-resource` macro, providing a service name and any other resource attributes:
    ```lisp
@@ -50,7 +50,7 @@ To use the opentelemetry exporter in your Common Lisp application, follow these 
    ```
    **Important**: Ensure `run-exporter` is called within the `with-resource` scope to properly associate the resource with the exporter thread.
 
-5. **Run the Exporter**: Start the exporter to begin sending collected spans to the OTLP endpoint.  It's recommended to start the exporter within the `with-resource` scope to ensure the resource context is properly set for the exporter thread:
+5. **Run the Exporter**: Start the exporter to begin sending collected spans to the OTLP endpoint. Start the exporter within the `with-resource` scope to ensure the resource context is properly set for the exporter thread:
    ```lisp
    (opentelemetry:with-resource ("my-service")
      (let ((my-tracer (opentelemetry:make-tracer "http://localhost:4318/v1/traces")))
