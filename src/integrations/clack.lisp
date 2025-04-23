@@ -2,8 +2,6 @@
   (:use :cl)
   (:local-nicknames
    (#:otel #:opentelemetry))
-  (:import-from #:lack/util
-                #:funcall-with-cb)
   (:export #:*lack-middleware-opentelemetry*))
 
 (in-package :opentelemetry.integrations.clack)
@@ -34,7 +32,7 @@
     (lambda (env)
       (let* ((span-name (format nil "HTTP ~a" (getf env :request-method)))
              (attributes (extract-attributes-from-env env)))
-        (otel:with-span (span-name :span-kind :server :attributes attributes)
+        (otel:with-span (span-name :span-kind :span-kind-server :attributes attributes)
           (handler-case
               (let ((res (funcall app env)))
                 ;; Set response attributes
@@ -43,7 +41,7 @@
 
                 ;; Set span status based on HTTP status code
                 (let ((status-code (first res)))
-                  (if (and (integerp status-code) (>= status-code 500))
+                  (if (>= (the fixnum status-code) 500)
                       (otel:set-span-status-error (format nil "HTTP status code: ~a" status-code))
                       (otel:set-span-status-ok)))
                 res)

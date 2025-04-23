@@ -1,0 +1,15 @@
+docker-compose:
+  files:
+    - compose.yaml
+input:
+  - path: /rolldice/foo
+expected:
+  traces:
+    - traceql: '{ name =~ ".*GET /rolldice/foo.*"}'
+      spans:
+        - name: "regex:.*GET /rolldice/foo.*"
+          kind: SPAN_KIND_SERVER
+          attributes:
+            service.name: rolldice
+          events:
+            - name: roll dice

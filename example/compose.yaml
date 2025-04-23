@@ -1,0 +1,48 @@
+services:
+  common-lisp:
+    build:
+      context: ../
+      dockerfile_inline: |
+        FROM archlinux AS protoc
+        RUN pacman -Syu --noconfirm base-devel git binutils make cmake abseil-cpp \
+            && git clone --recursive --branch 28.x --depth 1 https://github.com/protocolbuffers/protobuf /opt/protobuf-src \
+            && cd /opt/protobuf-src \
+            && cmake -B build -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local/  \
+            && cmake --build build --parallel "$(nproc)" \
+            && cmake --install build \
+        && ldconfig \
+        && git clone --depth 1 https://github.com/qitab/cl-protobufs /root/common-lisp/cl-protobufs
+        WORKDIR /root/common-lisp/cl-protobufs/protoc
+        RUN cmake -B . \
+            && cmake --build . --parallel "$(nproc)" \
+            && cmake --install .
+
+        FROM archlinux AS builder
+        RUN pacman -Syu --noconfirm roswell patchelf openssl base-devel protobuf \
+            && ros install qlot
+        COPY --from=protoc /root/common-lisp/cl-protobufs/protoc/protoc-gen-cl-pb /usr/local/bin/protoc-gen-cl-pb
+        COPY cl-otel.asd /root/common-lisp/cl-otel/cl-otel.asd
+        COPY src /root/common-lisp/cl-otel/src
+        COPY qlfile /root/common-lisp/cl-otel/qlfile
+        COPY qlfile.lock /root/common-lisp/cl-otel/qlfile.lock
+        COPY example/rolldice.ros /root/common-lisp/cl-otel/example/rolldice.ros
+        WORKDIR /root/common-lisp/cl-otel
+        RUN --mount=type=cache,target=/root/.cache/common-lisp \
+            --mount=type=cache,target=/root/common-lisp/cl-otel/.qlot \
+            ~/.roswell/bin/qlot install \
+            && ~/.roswell/bin/qlot exec ros build example/rolldice.ros
+
+        FROM archlinux
+        COPY --from=builder /root/common-lisp/cl-otel/example/rolldice /app/rolldice
+        RUN pacman -Syu --noconfirm curl
+        WORKDIR /app
+        CMD /app/rolldice
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:8080/"]
+      interval: "3s"
+      timeout: "3s"
+      retries: 3
+      start_period: 40s
+      start_interval: 5s

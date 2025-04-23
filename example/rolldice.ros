@@ -8,7 +8,7 @@ exec ros -Q -- $0 "$@"
   #+quicklisp(ql:quickload '(:hunchentoot :serapeum :easy-routes :cl-otel) :silent t))
 
 (defpackage :ros.script.rolldice.3952946413
-  (:use :cl :easy-routes))
+  (:use :cl))
 (in-package :ros.script.rolldice.3952946413)
 
 (defmethod hunchentoot:handle-request :around ((acceptor t) request)
@@ -33,18 +33,21 @@ exec ros -Q -- $0 "$@"
                              thunk)
    :name name))
 
-(defroute rolldice-endpoint ("/rolldice/:player" :method :get) ()
+(easy-routes:defroute rolldice-endpoint ("/rolldice/:player" :method :get) ()
   (let ((player (hunchentoot:url-decode player))
         (roll (prog1 (1+ (random 6))
                 (opentelemetry:new-span-event "roll dice" nil))))
     (format nil "~a: ~A~%" player roll)))
+
+(easy-routes:defroute healthcheck-endpoint ("/healthz" :method :get) ()
+  "OK")
 
 (defparameter *server* nil)
 (defun main (&rest argv)
   (declare (ignorable argv))
   (log:config :debug)
   (opentelemetry:with-resource ("rolldice")
-    (let* ((opentelemetry:*tracer* (opentelemetry:make-tracer "http://localhost:4318/v1/traces" :max-spans-per-batch 1 :export-timeout 1)))
+    (let* ((opentelemetry:*tracer* (opentelemetry:make-tracer "http://lgtm:4318/v1/traces" :max-spans-per-batch 1 :export-timeout 1)))
       (opentelemetry:run-exporter opentelemetry:*tracer*)
       (setf *server* (make-instance 'easy-routes:easy-routes-acceptor :port 8080 :taskmaster (make-instance 'tracing-taskmaster)))
       (hunchentoot:start *server*))

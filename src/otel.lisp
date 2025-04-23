@@ -102,10 +102,6 @@
                  (setf span-count 0)
                  (setf last-export-time (timestamp-seconds)))))))))
 
-(defun alist-with (alist &rest pairs)
-  alist)
-;; (append pairs alist))
-
 (defmacro with-resource ((service-name &rest attributes) &body body)
   "Sets up the resource for tracing with a given service name within the lexical scope.
 
@@ -115,12 +111,5 @@
   Args:
       service-name (string): The name of the service to be associated with the resource."
   (make-random-state)
-  `(let ((*resource* (create-resource (list :service.name ,service-name ,@attributes)))
-         (bt2:*default-special-bindings* (alist-with bt2:*default-special-bindings*
-                                                     (cons *current-span-id* *current-span-id*)
-                                                     (cons *span* *span*)
-                                                     (cons *trace-id* *trace-id*)
-                                                     (cons *tracer* *tracer*)
-                                                     (cons *scope* *scope*)
-                                                     (cons *resource* *resource*))))
+  `(let ((*resource* (create-resource (list :service.name ,service-name ,@attributes))))
      ,@body))

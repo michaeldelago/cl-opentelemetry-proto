@@ -33,4 +33,13 @@
 (defvar *scope* (otel.common:make-instrumentation-scope :name "opentelemetry-cl" :version (slot-value (asdf:find-system 'cl-otel) 'asdf:version)))
 (defvar *resource* nil)
 
-(make-random-state)
+
+;; Ensure OpenTelemetry special variables are propagated to new threads
+(setf bt2:*default-special-bindings*
+      (append `((*current-span-id* . *current-span-id*)
+                (*span* . *span*)
+                (*trace-id* . *trace-id*)
+                (*tracer* . *tracer*)
+                (*scope* . *scope*)
+                (*resource* . *resource*))
+              bt2:*default-special-bindings*))
