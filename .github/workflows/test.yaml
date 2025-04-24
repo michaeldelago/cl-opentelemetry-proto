@@ -18,9 +18,20 @@ jobs:
       LISP: ${{ matrix.lisp }}
 
     steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.0
+
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - run: |
+          set -eu
+
+          apt update && apt install -y protobuf-compiler libprotobuf-dev
+          earthly --ci --output +protobuf-build
+          sudo install protoc-gen-cl-pb /usr/local/bin
+
       - uses: 40ants/setup-lisp@v4
         with:
           roswell-version: v24.10.115
@@ -28,12 +39,6 @@ jobs:
       - uses: 40ants/run-tests@v2
         with:
           asdf-system: cl-opentelemetry
-
-      - name: Run tests
-        shell: bash
-        run: |
-          export PATH=$PATH:$HOME/.roswell/bin
-          qlot exec ros run -s cl-opentelemetry -e '(asdf:test-system :cl-opentelemetry)' -- --non-interactive
 
   oats:
     runs-on: ubuntu-latest
