@@ -1,2 +1,4 @@
 [tools]
 "go:github.com/grafana/oats" = "latest"
+[settings]
+experimental = true
