@@ -5,7 +5,7 @@ exec ros -Q -- $0 "$@"
 |#
 (progn ;;init forms
   (ros:ensure-asdf)
-  #+quicklisp(ql:quickload '(:hunchentoot :serapeum :easy-routes :cl-otel) :silent t))
+  #+quicklisp(ql:quickload '(:hunchentoot :serapeum :easy-routes :cl-opentelemetry) :silent t))
 
 (defpackage :ros.script.rolldice.3952946413
   (:use :cl))

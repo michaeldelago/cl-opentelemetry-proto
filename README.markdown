@@ -8,8 +8,6 @@ OpenTelemetry SDK for Common Lisp
 
 This project depends on [qitab/cl-protobufs](https://github.com/qitab/cl-protobufs) for working with the OpenTelemetry data model and formats. 
 
-In the code for this project, the generated lisp source for the OpenTelemetry data types is included, but the `qitab/cl-protobufs` project itself is not included. 
-
 As cl-protobufs is not in quicklisp, you'll need to make sure it's available to your local lisp environment:
 
 ```bash
@@ -20,9 +18,9 @@ $ git clone https://github.com/qitab/cl-protobufs ~/common-lisp/qitab-cl-protobu
 
 To use the opentelemetry exporter in your Common Lisp application, follow these steps:
 
-1. **Load the library**: Ensure that the `cl-otel` library is loaded in your Lisp environment. You can use Quicklisp to load it:
+1. **Load the library**: Ensure that the `cl-opentelemetry` library is loaded in your Lisp environment. You can use Quicklisp to load it:
    ```lisp
-   (ql:quickload :cl-otel)
+   (ql:quickload :cl-opentelemetry)
    ```
 
 2. **Create a Tracer**: Instantiate a tracer, providing the OTLP endpoint where you want to send your telemetry data. For example, to send traces to a local OTLP collector at `http://localhost:4318/v1/traces`:

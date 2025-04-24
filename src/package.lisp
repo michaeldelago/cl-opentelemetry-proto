@@ -30,7 +30,7 @@
 (defvar *span* nil)
 (defvar *trace-id* nil)
 (defvar *tracer* nil "The currently active tracer instance.")
-(defvar *scope* (otel.common:make-instrumentation-scope :name "opentelemetry-cl" :version (slot-value (asdf:find-system 'cl-otel) 'asdf:version)))
+(defvar *scope* (otel.common:make-instrumentation-scope :name "opentelemetry-cl" :version (slot-value (asdf:find-system 'cl-opentelemetry) 'asdf:version)))
 (defvar *resource* nil)
 
 

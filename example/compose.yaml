@@ -12,24 +12,24 @@ services:
             && cd /opt/cl-protobufs \
             && pacman -Syu --noconfirm base-devel roswell patchelf openssl \
             && echo "tempuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
-            && cat /etc/sudoers \
             && su tempuser -c "makepkg -si --noconfirm" \
             && ros install qlot
-        COPY cl-otel.asd /root/common-lisp/cl-otel/cl-otel.asd
-        COPY src /root/common-lisp/cl-otel/src
-        COPY qlfile /root/common-lisp/cl-otel/qlfile
-        COPY qlfile.lock /root/common-lisp/cl-otel/qlfile.lock
-        COPY example/rolldice.ros /root/common-lisp/cl-otel/example/rolldice.ros
-        WORKDIR /root/common-lisp/cl-otel
+        COPY cl-opentelemetry.asd /root/common-lisp/cl-opentelemetry/cl-opentelemetry.asd
+        COPY opentelemetry-proto /root/common-lisp/cl-opentelemetry/opentelemetry-proto
+        COPY src /root/common-lisp/cl-opentelemetry/src
+        COPY qlfile /root/common-lisp/cl-opentelemetry/qlfile
+        COPY qlfile.lock /root/common-lisp/cl-opentelemetry/qlfile.lock
+        COPY example/rolldice.ros /root/common-lisp/cl-opentelemetry/example/rolldice.ros
+        WORKDIR /root/common-lisp/cl-opentelemetry
         RUN --mount=type=cache,target=/root/.cache/common-lisp \
-            --mount=type=cache,target=/root/common-lisp/cl-otel/.qlot \
+            --mount=type=cache,target=/root/common-lisp/cl-opentelemetry/.qlot \
             --mount=type=cache,target=/root/.roswell \
             export PATH="$$HOME/.roswell/bin:$$PATH" \
             && qlot install \
             && qlot exec ros build example/rolldice.ros
 
         FROM archlinux
-        COPY --from=builder /root/common-lisp/cl-otel/example/rolldice /app/rolldice
+        COPY --from=builder /root/common-lisp/cl-opentelemetry/example/rolldice /app/rolldice
         RUN pacman -Syu --noconfirm curl
         WORKDIR /app
         CMD /app/rolldice

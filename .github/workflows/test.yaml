@@ -25,13 +25,13 @@ jobs:
           qlot-version: 1.6.0
       - uses: 40ants/run-tests@v2
         with:
-          asdf-system: cl-info
+          asdf-system: cl-opentelemetry
 
       - name: Run tests
         shell: bash
         run: |
           export PATH=$PATH:$HOME/.roswell/bin
-          qlot exec ros run -s cl-otel -e '(asdf:test-system :cl-otel)' -- --non-interactive
+          qlot exec ros run -s cl-opentelemetry -e '(asdf:test-system :cl-opentelemetry)' -- --non-interactive
 
   oats:
     runs-on: ubuntu-latest
