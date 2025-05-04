@@ -5,24 +5,25 @@
                     (#:otel.service.trace #:cl-protobufs.opentelemetry.proto.collector.trace.v1)
                     (#:otel.common #:cl-protobufs.opentelemetry.proto.common.v1))
   (:export #:*current-span-id*
-           #:*trace-id*
-           #:create-resource
            #:*resource*
-           #:with-span
-           #:tracer
-           #:make-tracer
-           #:*tracer*
+           #:*scope*
            #:*span*
-           #:tracer-channel
+           #:*trace-id*
+           #:*tracer*
+           #:call-with-span
+           #:create-resource
+           #:make-tracer
+           #:new-span-event
            #:otlp-endpoint
            #:run-exporter
-           #:with-resource
            #:set-span-attribute
            #:set-span-status
-           #:set-span-status-ok
            #:set-span-status-error
-           #:call-with-span
-           #:new-span-event))
+           #:set-span-status-ok
+           #:tracer
+           #:tracer-channel
+           #:with-resource
+           #:with-span))
 
 (in-package :opentelemetry)
 
@@ -34,7 +35,6 @@
 (defvar *resource* nil)
 
 
-;; Ensure OpenTelemetry special variables are propagated to new threads
 (setf bt2:*default-special-bindings*
       (append `((*current-span-id* . *current-span-id*)
                 (*span* . *span*)
@@ -43,3 +43,12 @@
                 (*scope* . *scope*)
                 (*resource* . *resource*))
               bt2:*default-special-bindings*))
+
+(setf bordeaux-threads:*default-special-bindings*
+      (append `((*current-span-id* . *current-span-id*)
+                (*span* . *span*)
+                (*trace-id* . *trace-id*)
+                (*tracer* . *tracer*)
+                (*scope* . *scope*)
+                (*resource* . *resource*))
+              bordeaux-threads:*default-special-bindings*))
