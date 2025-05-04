@@ -19,17 +19,17 @@ services:
         COPY src /root/common-lisp/cl-opentelemetry/src
         COPY qlfile /root/common-lisp/cl-opentelemetry/qlfile
         COPY qlfile.lock /root/common-lisp/cl-opentelemetry/qlfile.lock
-        COPY example/rolldice.ros /root/common-lisp/cl-opentelemetry/example/rolldice.ros
+        COPY example/rolldice/rolldice.ros /root/common-lisp/cl-opentelemetry/example/rolldice/rolldice.ros
         WORKDIR /root/common-lisp/cl-opentelemetry
         RUN --mount=type=cache,target=/root/.cache/common-lisp \
             --mount=type=cache,target=/root/common-lisp/cl-opentelemetry/.qlot \
             --mount=type=cache,target=/root/.roswell \
             export PATH="$$HOME/.roswell/bin:$$PATH" \
             && qlot install \
-            && qlot exec ros build example/rolldice.ros
+            && qlot exec ros build example/rolldice/rolldice.ros
 
         FROM archlinux
-        COPY --from=builder /root/common-lisp/cl-opentelemetry/example/rolldice /app/rolldice
+        COPY --from=builder /root/common-lisp/cl-opentelemetry/example/rolldice/rolldice /app/rolldice
         RUN pacman -Syu --noconfirm curl
         WORKDIR /app
         CMD /app/rolldice

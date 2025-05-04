@@ -1,0 +1,44 @@
+services:
+  common-lisp:
+    build:
+      context: ../
+      dockerfile_inline: |
+        FROM archlinux AS builder
+        COPY extra/cl-protobufs /opt/cl-protobufs
+        RUN --mount=type=cache,target=/root/.cache/common-lisp \
+            --mount=type=cache,target=/root/.roswell \
+            useradd tempuser \
+            && chmod 777 -R /opt/cl-protobufs \
+            && cd /opt/cl-protobufs \
+            && pacman -Syu --noconfirm base-devel roswell patchelf openssl \
+            && echo "tempuser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+            && su tempuser -c "makepkg -si --noconfirm" \
+            && ros install qlot
+        COPY cl-opentelemetry.asd /root/common-lisp/cl-opentelemetry/cl-opentelemetry.asd
+        COPY opentelemetry-proto /root/common-lisp/cl-opentelemetry/opentelemetry-proto
+        COPY src /root/common-lisp/cl-opentelemetry/src
+        COPY qlfile /root/common-lisp/cl-opentelemetry/qlfile
+        COPY qlfile.lock /root/common-lisp/cl-opentelemetry/qlfile.lock
+        COPY example/clack/clack.ros /root/common-lisp/cl-opentelemetry/example/clack/clack.ros
+        WORKDIR /root/common-lisp/cl-opentelemetry
+        RUN --mount=type=cache,target=/root/.cache/common-lisp \
+            --mount=type=cache,target=/root/common-lisp/cl-opentelemetry/.qlot \
+            --mount=type=cache,target=/root/.roswell \
+            export PATH="$$HOME/.roswell/bin:$$PATH" \
+            && qlot install \
+            && qlot exec ros build example/clack/clack.ros
+
+        FROM archlinux
+        COPY --from=builder /root/common-lisp/cl-opentelemetry/example/clack/clack /app/clack
+        RUN pacman -Syu --noconfirm curl
+        WORKDIR /app
+        CMD /app/clack
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:8080/"]
+      interval: "3s"
+      timeout: "3s"
+      retries: 3
+      start_period: 40s
+      start_interval: 5s

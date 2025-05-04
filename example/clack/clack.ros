@@ -1,0 +1,34 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  #+quicklisp(ql:quickload '(:clack :cl-opentelemetry :lack) :silent t))
+
+
+(defpackage :ros.script.clack.3954528680
+  (:use :cl))
+(in-package :ros.script.clack.3954528680)
+
+(defparameter *handler* nil)
+
+(defun app ()
+  (opentelemetry:with-resource ("clack")
+    (let* ((opentelemetry:*tracer* (opentelemetry:make-tracer "http://lgtm:4318/v1/traces" :max-spans-per-batch 1 :export-timeout 1)))
+      (opentelemetry:run-exporter opentelemetry:*tracer*)
+      (setf *handler*
+       (lack:builder
+        opentelemetry.integrations.clack:*lack-middleware-opentelemetry*
+        (lambda (env)
+          (declare (ignore env))
+          '(200 (:content-type "text/plain") ("Hello, Clack!"))))))))
+
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (app)
+  (sleep 180)
+  (clack:stop *handler))
+
+;;; vim: set ft=lisp lisp:
