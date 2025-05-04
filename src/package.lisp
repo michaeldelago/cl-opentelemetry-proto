@@ -5,6 +5,7 @@
                     (#:otel.service.trace #:cl-protobufs.opentelemetry.proto.collector.trace.v1)
                     (#:otel.common #:cl-protobufs.opentelemetry.proto.common.v1))
   (:export #:*current-span-id*
+           #:*special-bindings*
            #:*resource*
            #:*scope*
            #:*span*
@@ -33,6 +34,9 @@
 (defvar *tracer* nil "The currently active tracer instance.")
 (defvar *scope* (otel.common:make-instrumentation-scope :name "opentelemetry-cl" :version (slot-value (asdf:find-system 'cl-opentelemetry) 'asdf:version)))
 (defvar *resource* nil)
+
+(defparameter *special-bindings* '(*span* *current-span-id* *trace-id* *tracer* *scope* *resource*)
+  "List of special bindings for opentelemetry tracing. Useful with functions like SERAPEUM:DYNAMIC-CLOSURE.")
 
 
 (setf bt2:*default-special-bindings*

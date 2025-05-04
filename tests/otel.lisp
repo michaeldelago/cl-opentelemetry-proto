@@ -88,7 +88,7 @@
 (define-test test-nested-span-integration
   "Test for the tracer with a mock HTTP server"
   (with-resource ("otel-cl-test")
-    (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces"  :channel-buffer-size 10 :export-timeout-ms 100 :max-spans-per-batch 1))
+    (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces"  :channel-buffer-size 10 :export-timeout 1 :max-spans-per-batch 1))
            (opentelemetry:*tracer* test-tracer))
       (run-exporter test-tracer)
       (with-span ("parent-span")
@@ -148,7 +148,7 @@
 
 (define-test test-set-span-attribute
   "Test setting an attribute on the current span"
-  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout 0.5))
          (opentelemetry:*tracer* test-tracer)
          (attribute-key "test-attribute")
          (attribute-value "test-value"))
@@ -218,7 +218,7 @@
 
 (define-test test-set-span-status-ok
   "Test setting the span status to OK"
-  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout 0.5))
          (opentelemetry:*tracer* test-tracer))
     (with-resource ("test-service")
       (with-span ("status-span")
@@ -232,7 +232,7 @@
 
 (define-test test-set-span-status-error
   "Test setting the span status to ERROR"
-  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout 0.5))
          (opentelemetry:*tracer* test-tracer))
     (with-resource ("test-service")
       (with-span ("status-span")
@@ -246,7 +246,7 @@
 
 (define-test test-set-span-event
   "Test setting an event on the current span"
-  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout-ms 0.5))
+  (let* ((test-tracer (make-tracer "http://localhost:4318/v1/traces" :channel-buffer-size 10 :max-spans-per-batch 1 :export-timeout 0.5))
          (opentelemetry:*tracer* test-tracer)
          (event-name "test-event")
          (event-attributes '(:attribute1 "value1" :attribute2 123)))
