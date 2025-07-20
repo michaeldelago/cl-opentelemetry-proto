@@ -55,7 +55,6 @@
          (parent-span-id opentelemetry:*current-span-id*)
          (*current-span-id* (generate-span-id))
          (start-time (timestamp))
-         (end-time 0)                  ; Initialize end-time
          (*span* (otel.trace:make-span
                   :trace-id *trace-id*
                   :span-id *current-span-id*
@@ -65,12 +64,9 @@
                   :start-time-unix-nano start-time
                   :attributes (plist-to-attributes attributes))))
     (unwind-protect
-         (prog1
-             (funcall thunk)
-           ;; Capture the end time after the body executes
-           (setf end-time (timestamp)))
+         (funcall thunk)
       ;; Cleanup form: Set end time and send to channel
-      (setf (otel.trace:end-time-unix-nano *span*) end-time)
+      (setf (otel.trace:end-time-unix-nano *span*) (timestamp))
       ;; Use the channel from the active *tracer* instance
       (if (and *tracer* (tracer-channel *tracer*))
           (calispel:! (tracer-channel *tracer*) *span*)
