@@ -1,0 +1,4 @@
+Earthfile
+extra/cl-protobufs/*
+!extra/cl-protobufs/PKGBUILD
+.qlot
