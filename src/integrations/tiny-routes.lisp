@@ -16,5 +16,14 @@
 ;;  :CLACK.STREAMING T
 ;;  :CLACK.IO #<CLACK.HANDLER.HUNCHENTOOT::CLIENT {1000D57973}>
 ;;  :HEADERS #<HASH-TABLE :TEST EQUAL :COUNT 14 {1000D98203}>)
-;;
-;; Write a function that un-templates path-parameters in tiny-routes, so that in :request-uri, "22" is replaced with ":account-id" ai!
+
+(defun untemplate-path-info (env)
+  "Un-templates path parameters in a tiny-routes request's path-info.
+  Replaces actual parameter values (e.g., '22') with their keys (e.g., ':account-id')."
+  (let ((path-info (getf env :path-info))
+        (path-params (getf env :path-parameters)))
+    (loop for (key value) on path-params by #'cddr
+          do (setf path-info (cl-ppcre:regex-replace-all (format nil "/~a(?=/|$)" (cl-ppcre:quote-meta-chars value))
+                                                          path-info
+                                                          (format nil "/~a" (string-downcase (symbol-name key))))))
+    path-info))
