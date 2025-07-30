@@ -28,14 +28,19 @@
 
 (in-package :opentelemetry)
 
+#+asdf
+(defmacro asdf-version (system)
+  "Get the asdf-version of a system at compile time. Using asdf at runtime is slow and can be problematic."
+  (slot-value (asdf:find-system system) 'asdf:version))
+
+
 (defvar *current-span-id* nil)
 (defvar *span* nil)
 (defvar *trace-id* nil)
 (defvar *tracer* nil "The currently active tracer instance.")
 (defvar *scope* (otel.common:make-instrumentation-scope
                  :name "opentelemetry-cl"
-                 :version (load-time-value
-                           (slot-value (asdf:find-system 'cl-opentelemetry) 'asdf:version))))
+                 :version (asdf-version cl-opentelemetry)))
 (defvar *resource* nil)
 
 (defparameter *special-bindings* '(*span* *current-span-id* *trace-id* *tracer* *scope* *resource*)

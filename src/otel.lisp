@@ -93,10 +93,8 @@
                                          :headers '((:content-type . "application/x-protobuf"))
                                          :content request-content)
                          (error (c)
-                           (let ((err (format nil "Error exporting spans: ~a" c))
-                                 (readable-body (prin1-to-string body))
-                                 (readable-status (prin1-to-string status)))
-                             (log:error "exporting spans" err readable-body readable-status))))))
+                           (let ((err (format nil "Error exporting spans: ~a" c)))
+                             (log:error "exporting spans" err))))))
                  ;; (let ((decoded-response (cl-protobufs:deserialize-from-bytes 'otel.service.trace:export-trace-service-response body)))
                  ;;   (log:info "otel collector result" status decoded-response))
 
