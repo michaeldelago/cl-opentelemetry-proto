@@ -1,0 +1,45 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  #+quicklisp
+  (ql:quickload '(:clack :cl-opentelemetry :cl-opentelemetry/integrations :lack :clack-handler-hunchentoot :tiny-routes) :silent t))
+
+
+(defpackage :ros.script.tiny-routes.3962631335
+  (:use :cl :tiny-routes))
+(in-package :ros.script.tiny-routes.3962631335)
+
+(defparameter *handler* nil)
+(defparameter opentelemetry:*tracer* (opentelemetry:make-tracer "http://lgtm:4318/v1/traces" :max-spans-per-batch 1 :export-timeout 1))
+
+(define-routes public-routes
+  (define-get "/" ()
+    (ok "alive"))
+  (define-get "/accounts/:account-id/:rule" (request)
+    (ok "ok"))
+  (define-any "*" ()
+    (not-found "not-found")))
+
+(define-routes *app*
+  (pipe public-routes
+    (opentelemetry.integrations.tiny-routes:tracing-middleware)))
+
+(defun app ()
+  (opentelemetry:with-resource ("clack")
+    (opentelemetry:run-exporter opentelemetry:*tracer*)
+    (setf *handler* (clack:clackup *app*
+                                   :port 8080
+                                   :address "0.0.0.0"))))
+
+
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (app)
+  (sleep 180)
+  (clack:stop *handler*))
+
+;;; vim: set ft=lisp lisp:

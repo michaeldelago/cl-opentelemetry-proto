@@ -33,7 +33,7 @@ build-protoc:
     && chown -R builduser:builduser /tmp/build/cl-protobufs \
     && echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && cd /tmp/build/cl-protobufs \
-    && su builduser -c "makepkg --sync deps --clean --noconfirm" \
+    && su builduser -c "makepkg --syncdeps --clean --noconfirm" \
     && find -iname "cl-protobufs-debug*.pkg.tar.zst" -delete \
     && find -iname "cl-protobufs*.pkg.tar.zst" -exec mv {} cl-protobufs.pkg.tar.zst \;
   WORKDIR /tmp/build/cl-protobufs
@@ -63,3 +63,8 @@ test-all:
     BUILD +test-proto
     BUILD +test
   END
+
+oats:
+  LOCALLY
+  RUN docker compose -f example/clack/compose.yaml build
+  RUN oats ./example
