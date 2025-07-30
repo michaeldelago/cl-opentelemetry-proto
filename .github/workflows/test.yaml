@@ -32,12 +32,15 @@ jobs:
   oats:
     runs-on: ubuntu-latest
     steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.0
+
       - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: jdx/mise-action@v2
 
-      - run: docker compose build
-        working-directory: example
-      - run: oats .
-        working-directory: example
+      - run: docker compose build -f example/clack/compose.yaml
+
+      - run: oats example
