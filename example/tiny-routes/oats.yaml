@@ -2,12 +2,12 @@ docker-compose:
   files:
     - compose.yaml
 input:
-  - path: /
+  - path: /accounts/22/44
 expected:
   traces:
-    - traceql: '{ name =~ "HTTP GET"}'
+    - traceql: '{ name =~ "GET /accounts/:account-id/:rule"}'
       spans:
-        - name: "HTTP GET"
+        - name: "GET /accounts/:account-id/:rule"
           kind: SPAN_KIND_SERVER
           attributes:
             service.name: clack

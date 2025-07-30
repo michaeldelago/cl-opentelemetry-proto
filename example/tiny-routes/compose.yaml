@@ -3,7 +3,7 @@ services:
     build:
       context: ../../
       dockerfile: example/Dockerfile
-    command: /app/rolldice
+    command: /app/tiny-routes
     ports:
       - 8080:8080
     healthcheck:

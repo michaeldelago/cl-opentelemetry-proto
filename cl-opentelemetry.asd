@@ -61,6 +61,21 @@
   :description ""
   :in-order-to ((test-op (test-op "cl-opentelemetry/proto/tests"))))
 
+(defsystem "cl-opentelemetry/integrations"
+  :version "0.1.0"
+  :author ""
+  :license "MIT"
+  :depends-on (:alexandria :tiny-routes)
+  :serial t
+  :components ((:module "src"
+                :serial t
+                :components ((:module "integrations"
+                              :serial t
+                              :components ((:file "clack")
+                                           (:file "tiny-routes"))))))
+  :description "")
+;; :in-order-to ((test-op (test-op "cl-opentelemetry/tests"))))
+
 (defsystem "cl-opentelemetry/tests"
   :version "0.1.0"
   :author ""
@@ -71,6 +86,7 @@
   :components ((:file "tests/otel")
                (:file "tests/resource-attributes"))
   :perform (test-op (op c) (uiop:symbol-call :parachute :test :opentelemetry/tests)))
+
 
 (defsystem "cl-opentelemetry/proto/tests"
   :version "0.1.0"
