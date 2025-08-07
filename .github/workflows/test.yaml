@@ -41,6 +41,6 @@ jobs:
           submodules: true
       - uses: jdx/mise-action@v2
 
-      - run: docker compose build -f example/clack/compose.yaml
+      - run: docker compose -f example/clack/compose.yaml build
 
       - run: oats example
